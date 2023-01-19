@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 interface InterfacePublisher {
-    function subscribe(uint balance) external;
+    function subscribe(address user, uint balance) external;
     function notify(address member) external;
 }
 
@@ -11,13 +11,17 @@ contract Subscriber {
     
     event SubscribedEvent(address member);
 
-    constructor(address defaultPublisher) {
+    constructor(address defaultPublisher) {        
         publisher = defaultPublisher;
-        InterfacePublisher(publisher).subscribe(1337);
+        InterfacePublisher(publisher).subscribe(msg.sender, 1337); 
     }
 
     function publish(address member) external {
         emit SubscribedEvent(member);
     }
-}
 
+
+    function getContractBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+}
