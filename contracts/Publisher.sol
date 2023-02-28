@@ -1,119 +1,67 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-interface InterfaceSubscriber {
-    function publish(address member) external;
+interface InterfaceEventManager {
+    function notify(address member) external;
 }
 
-
 contract Publisher {
-    struct Subscriber {
-        address subscriberSMC;
-        address user;
-        uint balance;
-        bool init;
-        bool notified;
+
+    event MemberRemoved(address member, address eventManager);
+
+    struct EventManager {
+        address[] memberList; // keep list of registered publishers
+        mapping(address => bool) members; // easy lookup into in memberList (publisher => bool)
+        bool registered; // keep track if EventManager was registered
     }
 
-    struct SubscriberKey {
-        address addr;
+    mapping(address => EventManager) EventManagers; // Keep track of EventManagers (eventManagerAddr => EventManager)
+    address[] eventManagersList; // List of EventManagers
+
+    // Note -- I don't think we need a constructor
+    // constructor(address member1, address member2) {
+        // members[member1] = true;
+        // members[member2] = true;
+    // }
+
+
+    function registerEventManager(address eventManager) external {
+        require(EventManagers[eventManager].registered == false, "Event manager already registered");
+        EventManagers[eventManager].registered = true;
+        eventManagersList.push(eventManager);
     }
 
-    SubscriberKey[] subscriber_keys;
-    mapping (address => Subscriber) subscribers; // quick look up
-
-    uint incentive = 1000; // default incentive is 10000 Wei
-    address owner; // initialize owner variable
-
-    constructor(uint256 deposit) payable {
-        require(msg.value == deposit); // deposit is in Wei
-        require(msg.value > 0);
-        deposit = msg.value;
-        owner = msg.sender; // owner is the address that deployed the smart contract
+    function addPublisher(address publisher, address eventManager) external {
+        require(EventManagers[eventManager].registered == true, "Event manager not registered");
+        require(EventManagers[eventManager].members[publisher] == false, "Publisher already added");
+        EventManagers[eventManager].memberList.push(publisher);
+        EventManagers[eventManager].members[publisher] == true;
     }
 
-    function getContractBalance() public view returns (uint256) {
-        return address(this).balance;
+    function removePublisher(address member, address eventManager) external {
+        require(EventManagers[eventManager].registered == true, "Event manager not registered");
+        require(EventManagers[eventManager].members[publisher] == true, "Publisher not registered with EventManager");
+
+        EventManagers[eventManager].memberList = remove(EventManagers[eventManager].memberList, member);
+        EventManagers[eventManager].members[member] = false;
+        emit MemberRemoved(member, eventManager);
+
+        for (uint i = 0; i < EventManagers[eventManager].length; i++) {
+            InterfaceEventManager(EventManagers[eventManager].memberList[i]).notify(member);
+        }
+
     }
 
-
-
-    function subscribe(address payable user, uint deposit) external payable{
-        // need to "require" msg.sender is a smart contract with the publish function
-        require(msg.value > 0, "You need to send more than 0 Wei");
-        require(msg.value == deposit, "Message value doesn't equal defined deposit"); // Ensure subscriber is sending amount equal to the balance they want to deposit
-        uint gas_cost = gasleft();
-        subscriber_keys.push(SubscriberKey(msg.sender));
-        subscribers[msg.sender] = Subscriber(msg.sender, user, deposit, true, false); // add subscriber to map
-        user.transfer(gas_cost);  // transfer
-    }
-
-
-    function notify(address member) external payable {
-        require(subscribers[member].init == true); // verify subscriber exists
-        require(subscribers[member].notified == false); // verify subscriber hasn't been notified about
-        subscribers[member].notified = true;
-
-        // It's cheaper to declare and reallocate variables outside of for loop
-        uint balanceAfterIncentive = 0;
-        uint toCompensate = 0; // maintain running track of how much to compensate msg.sender
-        uint startGas = 0;
-        uint endGas = 0;
-        uint gasUsed = 0;
-        for (uint i = 0; i < subscriber_keys.length; i++) {
-            if (subscribers[subscriber_keys[i].addr].balance - incentive > 0) {      // only notify subscriber if they have enough balance
-                balanceAfterIncentive = subscribers[subscriber_keys[i].addr].balance - incentive;
-                // calculate how much notification costs
-                startGas = gasleft();
-                InterfaceSubscriber(subscribers[subscriber_keys[i].addr].subscriberSMC).publish(member);
-                endGas = gasleft();
-                gasUsed = startGas - endGas;
-
-                // Note -- I wrote this based on the PR comment but I'm not sure this if/else is sound.
-                // e.g., subscriber[i].balance - gasUsed could be < 0
-                // also checking if gasUsed == balanceAfterIncentive will probably never be true
-                if (gasUsed == balanceAfterIncentive) {
-                    toCompensate += subscribers[subscriber_keys[i].addr].balance;
-                    subscribers[subscriber_keys[i].addr].balance = 0;
-                }
-                else {
-                    toCompensate += subscribers[subscriber_keys[i].addr].balance - gasUsed;
-                    subscribers[subscriber_keys[i].addr].balance = subscribers[subscriber_keys[i].addr].balance - gasUsed;
-                }
+    // helper function to remove element from array
+    function remove(address[] publisherList, address publisher)  returns(address[]) internal {
+        require(publisherList.length > 0, "Received empty publisher list");
+        for (uint i = 0; i < publisherList.length; i++){
+            if (publisherList[i] == publisher) {
+                publisherList[i] = publisherList[i+1]; // remove element by overwriting previous index and removing the last index
             }
         }
-        // transfer compensate funds
-        payable(msg.sender).transfer(toCompensate);
+        delete publisherList[publisherList.length-1];
+        publisherList.length--;
+        return publisherList;
     }
-
-    // subscriber add balance
-    function subscriberAddBalance(address subscriber, uint amount) payable external {
-        require (subscribers[subscriber].init, "You have not subscribed to the system"); // Require subscriber to be part of the system
-        require (amount == msg.value, "Amount specified does not equal amount sent"); // make sure amount is the same as the message amount
-        require (msg.sender == subscribers[subscriber].user, "You did not initialize subscriber");
-        subscribers[subscriber].balance += msg.value;
-    }
-
-    // Subscriber can check its balance but not the balance of others
-    function checkSubscriberBalance(address subscriber) external view returns(uint) {
-        require(msg.sender == subscribers[subscriber].user, "You did not initialize subscriber");
-        require(subscribers[subscriber].init, "Subscriber not subscribed");
-        return subscribers[subscriber].balance;
-    }
-
-    function checkSubscriberNotified(address subscriber) external view returns(bool) {
-        require(msg.sender == subscribers[subscriber].user, "You did not initialize subscriber");
-        require(subscribers[subscriber].init, "Subscriber not initialized");
-        if (subscribers[subscriber].notified) {
-            return true;
-        }
-        return false;
-    }
-
-    //since incentive is statically set, function to enable smart contract owner to update the incentive value
-    function updateIncentive(uint new_incentive) external {
-        require(msg.sender == owner);
-        incentive = new_incentive;
-    }
-
 }
