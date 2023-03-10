@@ -1,67 +1,73 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-interface InterfaceEventManager {
-    function notify(address member) external;
-}
+// interface InterfaceeventManager {
+//     function notify(address member) external;
+// }
+
+import {PubSubService} from "./PubSubService.sol";
+import {EventManager} from "./EventManager.sol";
+
+// interface InterfacePubSubService {
+//     function register() external;
+// }
 
 contract Publisher {
 
-    event MemberRemoved(address member, address eventManager);
 
-    struct EventManager {
+    struct BlackList {
         address[] memberList; // keep list of registered publishers
         mapping(address => bool) members; // easy lookup into in memberList (publisher => bool)
-        bool registered; // keep track if EventManager was registered
     }
 
-    mapping(address => EventManager) EventManagers; // Keep track of EventManagers (eventManagerAddr => EventManager)
-    address[] eventManagersList; // List of EventManagers
+    bool public registeredToPubSub = false;
+    address public PubSubAddress;
+    address public eventManagerAddress;
+    PubSubService pubService;
 
-    // Note -- I don't think we need a constructor
-    // constructor(address member1, address member2) {
-        // members[member1] = true;
-        // members[member2] = true;
-    // }
+    BlackList officialBL;
 
 
-    function registerEventManager(address eventManager) external {
-        require(EventManagers[eventManager].registered == false, "Event manager already registered");
-        EventManagers[eventManager].registered = true;
-        eventManagersList.push(eventManager);
+    // mapping(address => eventManager) eventManagers; // Keep track of eventManagers (eventManagerAddr => eventManager)
+    // address[] eventManagersList; // List of eventManagers
+
+
+    function registerToPubSubService(address pubSubAddr, uint deposit) payable external returns(address) {
+        require(deposit == msg.value, "Amount sent is different than specified");
+        require(registeredToPubSub == false, "Publisher already registered to PubSubService"); // Assumes publisher can only register to a single pubsub service
+        pubService = PubSubService(pubSubAddr);
+        eventManagerAddress = address(pubService.register{value:msg.value}(deposit));
+        registeredToPubSub = true;
+        PubSubAddress = pubSubAddr;
+        return eventManagerAddress;
     }
 
-    function addPublisher(address publisher, address eventManager) external {
-        require(EventManagers[eventManager].registered == true, "Event manager not registered");
-        require(EventManagers[eventManager].members[publisher] == false, "Publisher already added");
-        EventManagers[eventManager].memberList.push(publisher);
-        EventManagers[eventManager].members[publisher] == true;
+
+    function addToBlackList(address user) external payable {
+        // require(registeredToPubSub == true, "Publisher not registered yet");
+        // require(officialBL.members[user] == false, "User is already in blacklist");
+        officialBL.memberList.push(user);
+        officialBL.members[user] = true;
+        EventManager(eventManagerAddress).notifyAddedToBlackList(user);
     }
 
-    function removePublisher(address member, address eventManager) external {
-        require(EventManagers[eventManager].registered == true, "Event manager not registered");
-        require(EventManagers[eventManager].members[publisher] == true, "Publisher not registered with EventManager");
-
-        EventManagers[eventManager].memberList = remove(EventManagers[eventManager].memberList, member);
-        EventManagers[eventManager].members[member] = false;
-        emit MemberRemoved(member, eventManager);
-
-        for (uint i = 0; i < EventManagers[eventManager].length; i++) {
-            InterfaceEventManager(EventManagers[eventManager].memberList[i]).notify(member);
-        }
-
+    // From the white board, the state department will run this function
+    function removeFromBlackList(address member) external payable {
+        // require(registeredToPubSub == true, "Publisher not registered yet");
+        // require(officialBL.members[member] == true, "User is not on blacklist");
+        remove(officialBL.memberList, member);
+        officialBL.members[member] = false;
+        EventManager(eventManagerAddress).notifyRemoveFromBlackList(member);
     }
 
     // helper function to remove element from array
-    function remove(address[] publisherList, address publisher)  returns(address[]) internal {
+    function remove(address[] storage publisherList, address publisher) private  {
         require(publisherList.length > 0, "Received empty publisher list");
         for (uint i = 0; i < publisherList.length; i++){
             if (publisherList[i] == publisher) {
-                publisherList[i] = publisherList[i+1]; // remove element by overwriting previous index and removing the last index
+                publisherList[i] = publisherList[publisherList.length-1]; // remove element by overwriting previous index and removing the last index
+                publisherList.pop();
             }
         }
-        delete publisherList[publisherList.length-1];
-        publisherList.length--;
-        return publisherList;
     }
 }
