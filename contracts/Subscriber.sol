@@ -1,26 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {PubSubService} from "./PubSubService.sol";
+
+interface Interface_PubSubService {
+    function subscribe(address publisher_addr, uint256 deposit, address subscribeContractAddr) external payable;
+}
 
 contract Subscriber {
+    event BlackListAdd(address member);
+    event BlackListRemoved(address member);
 
-    constructor(address publisher_addr, address pubsub_addr, uint deposit) payable {
+    constructor(address publisher_addr, address pubsub_addr, uint256 deposit) payable {
         require(deposit == msg.value, "Deposit must equal sent amount");
-        PubSubService(pubsub_addr).subscribe{value: msg.value}(publisher_addr, msg.value, address(this));
+        Interface_PubSubService(pubsub_addr).subscribe{value: msg.value}(publisher_addr, msg.value, address(this));
     }
 
     address[] blackList;
     mapping(address => bool) blLookup;
 
-    function addedUserToBlackList(address user) external {
+    enum Action { ADD_TO_BLACKLIST, DELETE_FROM_BLACKLIST } // Types of actions
+
+    function addedUserToBlackList(address user) public {
         blackList.push(user);
         blLookup[user] = true;
 
     }
 
-    function removeFromBlackList(address user) external {
+    function removeFromBlackList(address user) public {
         remove(blackList, user);
+    }
+
+    function notify(bytes memory data) public {
+        (Action action, address user) = abi.decode(data, (Action, address));
+        if (action == Action.ADD_TO_BLACKLIST) {
+            addedUserToBlackList(user);
+            emit BlackListAdd(user);
+        } else if (action == Action.DELETE_FROM_BLACKLIST) {
+            removeFromBlackList(user);
+            emit BlackListRemoved(user);
+        }
     }
 
     // helper function to remove element from array
@@ -35,11 +53,15 @@ contract Subscriber {
                 bList.pop();
             }
         }
+        blLookup[member] = false;
     }
 
     function viewBlackList() public view returns(address[] memory) {
         return blackList;
     }
 
+    function getContractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
 
 }
