@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {Subscriber as SubscribeContract} from "./Subscriber.sol";
 
+interface Interface_Subscriber {
+    function addedUserToBlackList(address user) external;
+    function removeFromBlackList(address user) external;
+    function notify(bytes memory data) external;
+}
 
 contract EventManager {
 
@@ -23,81 +27,57 @@ contract EventManager {
     address[] subscriber_addrs;
     mapping (address => Subscriber) subscribers; // quick look up
 
-    uint incentive = 1000; // default incentive is 10000 Wei
+    uint incentive = 1000000; // default incentive is 10000 Wei
+    uint256 min_deposit = 100000000;
     address owner; // initialize owner variable
 
-    constructor(uint256 deposit) payable {
-        require(msg.value == deposit); // deposit is in Wei
-        require(msg.value > 0);
-        deposit = msg.value;
+    constructor() {
         owner = msg.sender; // owner is the address that deployed the smart contract
     }
 
 
-
-    function addSubscriber(address publisher_addr, address payable user, address subscribeContractAddr) external payable{
+    function addSubscriber(address publisher_addr, address subscribeContractAddr) public payable{
         // need to "require" msg.sender is a smart contract with the publish function
-        require(msg.value > 0, "You need to send more than 0 Wei");
-        // require(msg.value == deposit, "Message value doesn't equal defined deposit"); // Ensure subscriber is sending amount equal to the balance they want to deposit
-        // uint gas_cost = gasleft();
+        require(msg.value > min_deposit, "You need to send at least the minimum deposit");
         subscriber_addrs.push(subscribeContractAddr);
         subscribers[subscribeContractAddr] = Subscriber(subscribeContractAddr, publisher_addr, msg.value, true, false); // add subscriber to map
-        user.transfer(msg.value);  // transfer
+
     }
 
 
-    function notifyAddedToBlackList(address user) external payable {
-        uint balanceAfterIncentive = 0;
-        uint toCompensate = 0; // maintain running track of how much to compensate msg.sender
+    function notify(bytes memory data) public {
+        require(gasleft() <= address(this).balance, "Contract doesn't have enough funds");
+        uint256 toCompensate = 0; // maintain running track of how much to compensate msg.sender
         uint startGas = 0;
         uint endGas = 0;
-        uint gasUsed = 0;
+
+        uint numSubscribers = subscriber_addrs.length;
+        uint incentiveCharge = incentive / numSubscribers;
 
         for (uint i = 0; i < subscriber_addrs.length; i++) {
             if (subscribers[subscriber_addrs[i]].balance - incentive > 0) {      // only notify subscriber if they have enough balance   (TODO: Maybe we should require a minimum balance? i.e., what is the max cost of this transaction?)
                 // calculate how much notification costs
                 startGas = gasleft();
-                SubscribeContract(subscriber_addrs[i]).addedUserToBlackList(user);  // This is the notification
+                Interface_Subscriber(subscriber_addrs[i]).notify(data);  // This is the notification
                 endGas = gasleft();
                 toCompensate = toCompensate + startGas - endGas;
-                balanceAfterIncentive = subscribers[subscriber_addrs[i]].balance - incentive - gasUsed;
+                subscribers[subscriber_addrs[i]].balance = subscribers[subscriber_addrs[i]].balance - (incentiveCharge + (startGas-endGas));
             }
         }
         // transfer compensate funds for notifications to the user that initiated the "add to blacklist" function
-        // toCompensate = 100;
-        payable(msg.sender).transfer(toCompensate);
-        // return(toCompensate);
+        require(toCompensate < address(this).balance, "Contract doesn't have enough funds");
+
+        (bool success, ) = payable(msg.sender).call{value: toCompensate}("");  //.call is required to transfer funds to a smart contract. Transferring funds back to a smart contract costs more than the maximum gas cost of 2300 for .transfer. https://stackoverflow.com/questions/66112452/how-to-transfer-fund-from-msg-senderamount-to-recipient-address-without-using#:~:text=These%20examples%20work%20on%20Solidity%200.8.%20Some%20previous,uint256%20bonus%20%3D%20calculateBonus%20%28%29%3B%20payable%20%28msg.sender%29.transfer%20%28bonus%29%3B
+        require(success, "Reimbursement failed.");
     }
 
 
-    function notifyRemoveFromBlackList(address user) external payable {
-        uint balanceAfterIncentive = 0;
-        uint toCompensate = 0; // maintain running track of how much to compensate msg.sender
-        uint startGas = 0;
-        uint endGas = 0;
-        uint gasUsed = 0;
-
-        for (uint i = 0; i < subscriber_addrs.length; i++) {
-            if (subscribers[subscriber_addrs[i]].balance - incentive > 0) {      // only notify subscriber if they have enough balance   (TODO: Maybe we should require a minimum balance? i.e., what is the max cost of this transaction?)
-                // calculate how much notification costs
-                startGas = gasleft();
-                SubscribeContract(subscriber_addrs[i]).removeFromBlackList(user);  // This is the notification
-                endGas = gasleft();
-                toCompensate = toCompensate + startGas - endGas;
-                balanceAfterIncentive = subscribers[subscriber_addrs[i]].balance - incentive - gasUsed;
-            }
-        }
-        // transfer compensate funds for notifications to the user that initiated the "add to blacklist" function
-        payable(msg.sender).transfer(toCompensate);
-    }
-
-
-    function getContractBalance() public view returns (uint256) {
+    function getContractBalance() external view returns (uint256) {
         return address(this).balance;
     }
 
 
-    function subscriberAddBalance(address subscriber, uint amount) payable external {
+    function subscriberAddBalance(address subscriber, uint amount) payable public {
         require (subscribers[subscriber].init, "You have not subscribed to the system"); // Require subscriber to be part of the system
         require (amount == msg.value, "Amount specified does not equal amount sent"); // make sure amount is the same as the message amount
         require (msg.sender == subscribers[subscriber].addr, "You did not initialize subscriber");
@@ -105,14 +85,14 @@ contract EventManager {
     }
 
     // Subscriber can check its balance but not the balance of others
-    function checkSubscriberBalance(address subscriber) external view returns(uint) {
+    function checkSubscriberBalance(address subscriber) public view returns(uint) {
         require(subscribers[subscriber].init, "Subscriber not subscribed");
         return subscribers[subscriber].balance;
     }
 
 
     //since incentive is statically set, function to enable smart contract owner to update the incentive value
-    function updateIncentive(uint new_incentive) external {
+    function updateIncentive(uint new_incentive) public {
         require(msg.sender == owner);
         incentive = new_incentive;
     }
