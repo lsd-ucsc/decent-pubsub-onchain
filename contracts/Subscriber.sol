@@ -6,6 +6,8 @@ interface Interface_PubSubService {
     function subscribe(address publisher_addr, uint256 deposit, address subscribeContractAddr) external payable;
 }
 
+// Enum interface?
+
 contract Subscriber {
     event BlackListAdd(address member);
     event BlackListRemoved(address member);
@@ -23,7 +25,6 @@ contract Subscriber {
     function addedUserToBlackList(address user) public {
         blackList.push(user);
         blLookup[user] = true;
-
     }
 
     function removeFromBlackList(address user) public {

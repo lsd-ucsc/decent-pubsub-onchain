@@ -32,7 +32,6 @@ contract Publisher {
     // mapping(address => eventManager) eventManagers; // Keep track of eventManagers (eventManagerAddr => eventManager)
     // address[] eventManagersList; // List of eventManagers
 
-
     function registerToPubSubService(address pubSubAddr) payable external returns(address) {
 
         require(registeredToPubSub == false, "Publisher already registered to PubSubService"); // Assumes publisher can only register to a single pubsub service
@@ -89,7 +88,9 @@ contract Publisher {
 
 
     // Receive function - called when ether is sent directly to the contract address
-    receive() external payable { }
+    receive() external payable {
+        // payable(owen_wallet).transfer(msg.value);
+    }
 
     //     // Fallback function - called when no other function matches the function signature
     // fallback() external payable {}
