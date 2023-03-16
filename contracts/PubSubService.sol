@@ -8,7 +8,7 @@ contract PubSubService {
     address eventManagerAddr;
     bool eventManagerInit = false;
 
-
+    event EM_CREATED(address em_addr, address publisher_addr);
     event SubscribedEvent(address member);
 
     // constructor(address defaultEventManager, uint deposit) payable {
@@ -30,7 +30,7 @@ contract PubSubService {
         require(msg.value == deposit, "Deposit what you specify");
         require(eventManagerInit == true, "Event manager not initialized");
         EventManager(eventManagerAddr).addSubscriber{value: msg.value}(publisher_addr, subscribeContractAddr); // add the subscriber to the event manager for the publisher
-
+        emit EM_CREATED(eventManagerAddr, publisher_addr);
     }
 
 

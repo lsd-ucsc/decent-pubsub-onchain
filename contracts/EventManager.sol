@@ -20,8 +20,7 @@ contract EventManager {
     }
 
 
-    event addedToBlackList(address user);
-    event removeFromBlackList(address user);
+    event notfiy_sub(bytes data);
 
 
     address[] subscriber_addrs;
@@ -64,9 +63,12 @@ contract EventManager {
                 subscribers[subscriber_addrs[i]].balance = subscribers[subscriber_addrs[i]].balance - (incentiveCharge + (startGas-endGas));
             }
         }
+        emit notfiy_sub(data);
         // transfer compensate funds for notifications to the user that initiated the "add to blacklist" function
         require(toCompensate < address(this).balance, "Contract doesn't have enough funds");
 
+        // msg.sender = invoking address
+        // tx.origin = original invoking address
         (bool success, ) = payable(msg.sender).call{value: toCompensate}("");  //.call is required to transfer funds to a smart contract. Transferring funds back to a smart contract costs more than the maximum gas cost of 2300 for .transfer. https://stackoverflow.com/questions/66112452/how-to-transfer-fund-from-msg-senderamount-to-recipient-address-without-using#:~:text=These%20examples%20work%20on%20Solidity%200.8.%20Some%20previous,uint256%20bonus%20%3D%20calculateBonus%20%28%29%3B%20payable%20%28msg.sender%29.transfer%20%28bonus%29%3B
         require(success, "Reimbursement failed.");
     }
