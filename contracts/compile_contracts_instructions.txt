@@ -1,3 +1,4 @@
+Compiling contracts in Python is really buggy, so we'll manually do it in JavaScript
 Run
 
 solcjs --bin --abi --base-path [path_to_contract_dir] [contract_name] --output-dir [output_dir_path]
