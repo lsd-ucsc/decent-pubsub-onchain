@@ -147,35 +147,39 @@ def main():
     id, interface = compile_contract(web3_interface, root_directory, "PubSubService.sol")
     pubsub_addr, pubsub_contract = web3_interface.deploy_contract(interface, user_private_key)
     # id, interface = compile_contract(web3_interface, root_directory, "EventManager.sol")
-    # id, interface = compile_contract(web3_interface, root_directory, "Subscriber.sol")
+    subscriber_id, subscriber_interface = compile_contract(web3_interface, root_directory, "Subscriber.sol")
 
-
-
-    # transaction = pubsub_contract.functions.register().build_transaction(
-    #     {
-    #         # 'gas': 10000000,  # 3172000
-    #         'chainId': 1337,  # Ganache chain id
-    #         # 'gasPrice': int(web3_interface.w3.eth.gas_price),
-    #         'nonce': web3_interface.w3.eth.get_transaction_count(acct_address),
-    #         'value': 0,
-    #     }
-    # )
 
     transaction = publisher_contract.functions.registerToPubSubService(pubsub_addr).build_transaction(
         {
-            # 'gas': 10000000,  # 3172000
             'chainId': 1337,  # Ganache chain id
-            # 'gasPrice': int(web3_interface.w3.eth.gas_price),
             'nonce': web3_interface.w3.eth.get_transaction_count(acct_address),
-            'value': 0,
+            # 'value': 0,
         }
     )
 
     tx_receipt = submit_transaction(web3_interface, transaction, private_key=user_private_key)
 
     print(f'HERERE {tx_receipt}')
-    print(publisher_contract.events.EM_CREATED().process_receipt(tx_receipt))
+    # Get event manager contract address
+    em_addr = publisher_contract.events.EM_CREATED().process_receipt(tx_receipt)[0].args.em_addr
+    print(f"EVENT MANAGER {em_addr}")
 
+    # print(publisher_contract.events.EM_CREATED().process_receipt(tx_receipt))
+
+    # Deploy Subscriber
+
+    subscriber_addr, subscriber_contract = web3_interface.deploy_contract(subscriber_interface, user_private_key, publisher_addr, pubsub_addr, 100000010101, value=100000010101)
+    print(f'SUBSCRIBER_ADDR {subscriber_addr}')
+
+    # new_user_private_key = '0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1'
+    # new_user_public_key = '0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0'
+    transaction = publisher_contract.functions.addToBlackList('0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1').build_transaction({
+        'chainId': 1337,  # Ganache chain id
+        'nonce': web3_interface.w3.eth.get_transaction_count(acct_address),
+    })
+    tx_receipt = submit_transaction(web3_interface, transaction, private_key=user_private_key)
+    print(f'{tx_receipt}')
     exit(-1)
 
 
