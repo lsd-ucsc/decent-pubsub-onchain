@@ -17,6 +17,7 @@ contract Publisher {
     enum Action { ADD_TO_BLACKLIST, DELETE_FROM_BLACKLIST } // Types of actions
 
     event EM_CREATED(address em_addr);
+    event GAS_COST(uint gas);
 
     struct BlackList {
         address[] memberList; // keep list of blacklist addresses
@@ -46,12 +47,14 @@ contract Publisher {
     }
 
 
-    function addToBlackList(address user) public  {
+    function addToBlackList(address user) public {
         require(registeredToPubSub == true, "Publisher not registered yet");
         require(officialBL.members[user] == false, "User is already in blacklist");
         officialBL.memberList.push(user);
         officialBL.members[user] = true;
+        uint gas = gasleft();
         InterfaceEventManager(eventManagerAddress).notify(encodeAction(Action.ADD_TO_BLACKLIST, user));
+        emit GAS_COST(gas - gasleft());
     }
 
     function viewBlackList() public view returns(address[] memory) {
@@ -64,7 +67,9 @@ contract Publisher {
         require(officialBL.members[member] == true, "User is not on blacklist");
         remove(officialBL.memberList, member);
         officialBL.members[member] = false;
+        uint gas = gasleft();
         InterfaceEventManager(eventManagerAddress).notify(encodeAction(Action.DELETE_FROM_BLACKLIST, member));
+        emit GAS_COST(gas - gasleft());
     }
 
 

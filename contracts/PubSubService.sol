@@ -140,7 +140,7 @@ contract EventManager {
     }
 
     function viewSubscriberList() public view returns(address[] memory){
-            return subscriber_addrs;
+        return subscriber_addrs;
     }
 
 }
