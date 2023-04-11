@@ -103,7 +103,7 @@ def main():
     notify_add_cost = []
     notify_remove_cost = []
 
-    for i in range(1, len(private_keys_list)):
+    for i in range(1, len(private_keys_list)+1):
         publisher_addr, publisher_contract = web3_interface.deploy_contract(publisher_interface, user_private_key)
         print(f"PUBLISHER ADDRESS {web3_interface.toCheckSumAddress(publisher_addr)}")
 
@@ -162,21 +162,24 @@ def main():
         print(f"=======================")
         notify_remove_cost.append(publisher_contract.events.GAS_COST().process_receipt(tx_receipt, errors=web3.logs.DISCARD)[0].args.gas)
 
-    plt.plot(np.arange(1, len(notify_add_cost) + 1), notify_add_cost)
+
+    scale_by = 6
+    scale = np.power(10, scale_by)
+    plt.plot(np.arange(1, len(notify_add_cost) + 1), np.array(notify_add_cost)/scale)
+    plt.xticks(np.arange(1,len(notify_add_cost)+1, 1))
     plt.title(f"Gas cost adding to blacklist")
-    plt.xlabel("Number of subscribers to notify")
-    plt.ylabel("Gas cost (Wei)")
+    plt.xlabel("Number of subscribing contracts")
+    plt.ylabel(f"Gas cost (1e{scale_by})")
     plt.show()
     print(notify_add_cost)
 
-    plt.plot(np.arange(1, len(notify_remove_cost) + 1), notify_remove_cost)
+    plt.plot(np.arange(1, len(notify_remove_cost) + 1), np.array(notify_remove_cost)/scale)
+    plt.xticks(np.arange(1, len(notify_remove_cost) + 1, 1))
     plt.title(f"Gas cost removing from blacklist starting with {len(notify_remove_cost)} items")
-    plt.xlabel("Number of subscribers to notify")
-    plt.ylabel("Gas cost (Wei)")
+    plt.xlabel("Number of subscribing contracts")
+    plt.ylabel(f"Gas cost (1e{scale_by})")
     plt.show()
     exit(-1)
-
-
 
 
 if __name__ == "__main__":
