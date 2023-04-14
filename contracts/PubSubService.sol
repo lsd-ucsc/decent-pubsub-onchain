@@ -83,6 +83,7 @@ contract EventManager {
 
 
     function notify(bytes memory data) public {
+        require(msg.sender == owner, "Only the owner can send notifications"); // TODO: event manager sharing
         require(gasleft() <= address(this).balance, "Contract doesn't have enough funds");
         uint256 toCompensate = 0; // maintain running track of how much to compensate msg.sender
         uint startGas = 0;
