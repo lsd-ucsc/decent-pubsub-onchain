@@ -10,7 +10,6 @@ contract PubSubService {
 
     event ServiceDeployed(address indexed service_addr);
     event EM_CREATED(address pub_addr, address em_addr);
-    event SubscribedEvent(address member);
 
     // constructor(address defaultEventManager, uint deposit) payable {
     constructor() {
@@ -44,8 +43,6 @@ contract PubSubService {
 
 
 interface Interface_Subscriber {
-    function addedUserToBlackList(address user) external;
-    function removeFromBlackList(address user) external;
     function notify(bytes memory data) external;
 }
 
