@@ -20,9 +20,6 @@ contract EventManager {
     }
 
 
-    event notfiy_sub(bytes data);
-
-
     address[] subscriber_addrs;
     mapping (address => Subscriber) subscribers; // quick look up
 
@@ -63,7 +60,6 @@ contract EventManager {
                 subscribers[subscriber_addrs[i]].balance = subscribers[subscriber_addrs[i]].balance - (incentiveCharge + (startGas-endGas));
             }
         }
-        emit notfiy_sub(data);
         // transfer compensate funds for notifications to the user that initiated the "add to blacklist" function
         require(toCompensate < address(this).balance, "Contract doesn't have enough funds");
 
