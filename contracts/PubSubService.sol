@@ -8,12 +8,13 @@ contract PubSubService {
     address eventManagerAddr;
     bool eventManagerInit = false;
 
-    event EM_CREATED(address em_addr);
+    event ServiceDeployed(address indexed service_addr);
+    event EM_CREATED(address pub_addr, address em_addr);
     event SubscribedEvent(address member);
 
     // constructor(address defaultEventManager, uint deposit) payable {
     constructor() {
-
+        emit ServiceDeployed(address(this));
     }
 
 
@@ -22,7 +23,7 @@ contract PubSubService {
         EventManager contractAddress = new EventManager();
         eventManagerAddr = address(contractAddress); // convert contract object to address
         eventManagerInit = true;
-        emit EM_CREATED(eventManagerAddr);
+        emit EM_CREATED(msg.sender, eventManagerAddr);
         return contractAddress;
     }
 
