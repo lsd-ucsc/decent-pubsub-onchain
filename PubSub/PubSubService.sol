@@ -16,7 +16,7 @@ contract PubSubService {
 
     //===== Member variables =====
 
-    mapping (address => MappedEventManager) m_eventManagerMap;
+    mapping(address => MappedEventManager) m_eventManagerMap;
 
     //===== Events =====
 
@@ -29,12 +29,15 @@ contract PubSubService {
         emit ServiceDeployed(address(this));
     }
 
-    //===== Functions =====
+    //===== external Functions =====
 
     /**
-     * @notice Deploys EventManager when Publisher wants to register with PubSub
+     * Register a publisher with the PubSubService and spawn a new
+     * corresponding EventManager contract
+     * @return address The address of the newly created EventManager contract
+     * @dev The publisher must call this function to register
      */
-    function Register() external returns (address) {
+    function register() external returns (address) {
         // 1. publisher address
         address publisherAddr = msg.sender;
 
@@ -62,11 +65,11 @@ contract PubSubService {
     }
 
     /**
-     * @notice Subscribe a subscriber to a publisher
+     * Subscribe a subscriber to a publisher's event manager
      * @param publisherAddr The address of the publisher
      * @param deposit The amount of ETH to deposit
      */
-    function Subscribe(address publisherAddr, uint256 deposit) external payable {
+    function subscribe(address publisherAddr, uint256 deposit) external payable {
         // 1. make sure the publisher has already registered
         require(
             m_eventManagerMap[publisherAddr].init == true,
@@ -82,16 +85,17 @@ contract PubSubService {
         address subscriberAddr = msg.sender;
 
         // 4. add the subscriber to the event manager
-        EventManager(eventMgrAddr).AddSubscriber{
+        EventManager(eventMgrAddr).addSubscriber{
             value: msg.value
         }(subscriberAddr);
     }
 
     /**
-     * @notice Get the EventManager contract address for a publisher
+     * Get the EventManager contract address for a publisher
      * @param publisherAddr The address of the publisher
+     * @return address The address of the EventManager contract
      */
-    function GetEventManagerAddr(address publisherAddr) external view returns (address) {
+    function getEventManagerAddr(address publisherAddr) external view returns (address) {
         // 1. make sure the publisher has already registered
         require(
             m_eventManagerMap[publisherAddr].init == true,
