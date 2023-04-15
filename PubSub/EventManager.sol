@@ -3,8 +3,9 @@ pragma solidity ^0.8.17;
 
 
 interface Interface_Subscriber {
-    function Notify(bytes memory data) external;
+    function onNotify(bytes memory data) external;
 }
+
 
 contract EventManager {
 
@@ -21,9 +22,9 @@ contract EventManager {
 
     //===== Member variables =====
 
-    address[]                                m_subscriberAddrs;
-    mapping (address => MappedSubscriber)    m_subscriberMap;
-    mapping (address => MappedPubPermission) m_publisherMap;
+    address[]                               m_subscriberAddrs;
+    mapping(address => MappedSubscriber)    m_subscriberMap;
+    mapping(address => MappedPubPermission) m_publisherMap;
 
     address  m_owner;
     uint     m_incentiveWei  = 1000000; // default incentive is 10000 Wei
@@ -46,12 +47,13 @@ contract EventManager {
         });
     }
 
-    //===== Functions =====
+    //===== external Functions =====
 
     /**
-     * @notice Add a subscriber to the list of subscribers
+     * Add a subscriber to the list of subscribers
+     * @param subscriberAddr The address of the subscriber
      */
-    function AddSubscriber(address subscriberAddr) external payable {
+    function addSubscriber(address subscriberAddr) external payable {
         // 1. check that ther subscriber has not been added
         require(
             !m_subscriberMap[subscriberAddr].init,
@@ -76,9 +78,10 @@ contract EventManager {
 
 
     /**
-     * @notice Notify all subscribers
+     * Notify all subscribers
+     * @param data The data to send to the subscribers
      */
-    function Notify(bytes memory data) external {
+    function notifySubscribers(bytes memory data) external {
         // 1. Make sure the entrance lock is free
         require(
             !m_entranceLock,
@@ -119,7 +122,7 @@ contract EventManager {
                 limitGas = limitWei / gasPriceWei;
 
                 usedGas = gasleft();
-                Interface_Subscriber(subscriberAddr).Notify{
+                Interface_Subscriber(subscriberAddr).onNotify{
                     gas: limitGas
                 }(data);
                 usedGas -= gasleft(); // (start - end)
@@ -142,9 +145,10 @@ contract EventManager {
     }
 
     /**
-     * @notice Make deposit to a subscriber's balance
+     * Make deposit to a subscriber's balance
+     * @param subscriber The address of the subscriber
      */
-    function SubscriberAddBalance(address subscriber) external payable {
+    function subscriberAddBalance(address subscriber) external payable {
         // 1. check that the subscriber has been added
         require(
             m_subscriberMap[subscriber].init,
@@ -156,9 +160,11 @@ contract EventManager {
     }
 
     /**
-     * @notice Check the balance of a subscriber
+     * Check the balance of a subscriber
+     * @param subscriber The address of the subscriber
+     * @return uint The balance of the subscriber
      */
-    function SubscriberCheckBalance(address subscriber) external view returns(uint) {
+    function subscriberCheckBalance(address subscriber) external view returns(uint) {
         // 1. check that the subscriber has been added
         require(
             m_subscriberMap[subscriber].init,
@@ -170,10 +176,11 @@ contract EventManager {
     }
 
     /**
-     * @notice Since incentive is statically set, this function enables
-     *         the owner to update the incentive value
+     * Since incentive is statically set, this function enables the owner to
+     * update the incentive value
+     * @param incentive The new incentive value
      */
-    function UpdateIncentive(uint incentive) external {
+    function updateIncentive(uint incentive) external {
         // 1. check that the caller is the owner
         require(
             msg.sender == m_owner,
@@ -185,9 +192,10 @@ contract EventManager {
     }
 
     /**
-     * @notice Add a publisher to share this event manager
+     * Add a publisher to share this event manager
+     * @param publisherAddr The address of the publisher
      */
-    function AddPublisher(address publisherAddr) external {
+    function addPublisher(address publisherAddr) external {
         // 1. check that the caller is the owner
         require(
             msg.sender == m_owner,
