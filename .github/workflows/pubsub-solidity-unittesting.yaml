@@ -4,8 +4,14 @@ name: Running Solidity Unit Tests for PubSub contracts
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'PubSub/**'
+      - 'tests/PubSub/**'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'PubSub/**'
+      - 'tests/PubSub/**'
 
 
 jobs:
