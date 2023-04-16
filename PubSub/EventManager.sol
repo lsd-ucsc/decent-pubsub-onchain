@@ -62,7 +62,7 @@ contract EventManager {
 
         // 2. check that the subscriber has sent enough funds
         require(
-            msg.value > m_minDepositWei,
+            msg.value >= m_minDepositWei,
             "You need to send at least the minimum deposit"
         );
 
@@ -199,7 +199,7 @@ contract EventManager {
         // 1. check that the caller is the owner
         require(
             msg.sender == m_owner,
-            "Only the owner can add a publisher"
+            "Only the owner can add publishers"
         );
 
         // Don't need to check if the publisher is already added
