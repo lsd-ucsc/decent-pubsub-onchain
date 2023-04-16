@@ -15,7 +15,7 @@ import {DummyContract, TestSubscriber} from "./TestUtils.sol";
 
 
 // File name has to end with '_test.sol', this file can contain more than one testSuite contracts
-contract testSuite {
+contract EventManager_testSuite {
 
     /// 'beforeAll' runs before all other tests
     /// More special functions are: 'beforeEach', 'beforeAll', 'afterEach' & 'afterAll'

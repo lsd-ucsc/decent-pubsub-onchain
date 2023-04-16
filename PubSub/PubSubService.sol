@@ -67,24 +67,19 @@ contract PubSubService {
     /**
      * Subscribe a subscriber to a publisher's event manager
      * @param publisherAddr The address of the publisher
-     * @param deposit The amount of ETH to deposit
      */
-    function subscribe(address publisherAddr, uint256 deposit) external payable {
+    function subscribe(address publisherAddr) external payable {
         // 1. make sure the publisher has already registered
         require(
             m_eventManagerMap[publisherAddr].init == true,
             "Publisher not registered"
         );
 
-        // 2. make sure the subscriber has deposited the correct amount
-        require(msg.value > 0, "Deposity > 0");
-        require(msg.value == deposit, "Deposit what you specify");
-
-        // 3. get the EventManager contract address
+        // 2. get the EventManager contract address
         address eventMgrAddr = m_eventManagerMap[publisherAddr].addr;
         address subscriberAddr = msg.sender;
 
-        // 4. add the subscriber to the event manager
+        // 3. add the subscriber to the event manager
         EventManager(eventMgrAddr).addSubscriber{
             value: msg.value
         }(subscriberAddr);
