@@ -35,7 +35,7 @@ contract PubSubService {
      * Register a publisher with the PubSubService and spawn a new
      * corresponding EventManager contract
      * @return address The address of the newly created EventManager contract
-     * @dev The publisher must call this function to register
+     * @dev The publisher contract must call this function to register
      */
     function register() external returns (address) {
         // 1. publisher address
@@ -67,6 +67,7 @@ contract PubSubService {
     /**
      * Subscribe a subscriber to a publisher's event manager
      * @param publisherAddr The address of the publisher
+     * @dev The subscriber contract must call this function to subscribe
      */
     function subscribe(address publisherAddr) external payable {
         // 1. make sure the publisher has already registered
@@ -90,7 +91,11 @@ contract PubSubService {
      * @param publisherAddr The address of the publisher
      * @return address The address of the EventManager contract
      */
-    function getEventManagerAddr(address publisherAddr) external view returns (address) {
+    function getEventManagerAddr(address publisherAddr)
+        external
+        view
+        returns (address)
+    {
         // 1. make sure the publisher has already registered
         require(
             m_eventManagerMap[publisherAddr].init == true,

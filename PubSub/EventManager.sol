@@ -76,7 +76,6 @@ contract EventManager {
         });
     }
 
-
     /**
      * Notify all subscribers
      * @param data The data to send to the subscribers
@@ -164,7 +163,11 @@ contract EventManager {
      * @param subscriber The address of the subscriber
      * @return uint The balance of the subscriber
      */
-    function subscriberCheckBalance(address subscriber) external view returns(uint) {
+    function subscriberCheckBalance(address subscriber)
+        external
+        view
+        returns(uint)
+    {
         // 1. check that the subscriber has been added
         require(
             m_subscriberMap[subscriber].init,
@@ -176,8 +179,8 @@ contract EventManager {
     }
 
     /**
-     * Since incentive is statically set, this function enables the owner to
-     * update the incentive value
+     * This function allows the owner to update the incentive value after
+     * the contract has been deployed
      * @param incentive The new incentive value
      */
     function updateIncentive(uint incentive) external {
