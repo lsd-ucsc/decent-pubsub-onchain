@@ -1,3 +1,5 @@
 .idea
+.deps
+.debugger
 
-*/artifacts/*.json
+artifacts/
