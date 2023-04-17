@@ -557,7 +557,7 @@ contract EventManager_testSuite {
     }
 
     /// #value: 9000000000000000000
-    function reentrySubscriberSubscriber() public payable {
+    function reentrySubscriber() public payable {
         Assert.equal(
             msg.value,
             9000000000000000000,
@@ -582,6 +582,9 @@ contract EventManager_testSuite {
         Interface_EventManager(eventMgr1Addr).addSubscriber{
             value: 1000000000000000000
         }(address(subscriber3));
+
+        // add subscriber2 as a publisher
+        Interface_EventManager(eventMgr1Addr).addPublisher(address(subscriber2));
 
         bytes memory testInput = "Hello World";
 

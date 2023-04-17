@@ -13,6 +13,7 @@ interface Interface_EventManager {
     /**
      * Notify all subscribers
      * @param data The data to send to the subscribers
+     * @dev The immediate caller must be a publisher
      */
     function notifySubscribers(bytes memory data) external;
 
@@ -36,12 +37,14 @@ interface Interface_EventManager {
      * This function allows the owner to update the incentive value after
      * the contract has been deployed
      * @param incentive The new incentive value
+     * @dev The owner contract must call this function directly
      */
     function updateIncentive(uint incentive) external;
 
     /**
      * Add a publisher to share this event manager
      * @param publisherAddr The address of the publisher
+     * @dev The owner contract must call this function directly
      */
     function addPublisher(address publisherAddr) external;
 }

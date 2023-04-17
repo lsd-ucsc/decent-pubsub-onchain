@@ -79,6 +79,7 @@ contract EventManager {
     /**
      * Notify all subscribers
      * @param data The data to send to the subscribers
+     * @dev The immediate caller must be a publisher
      */
     function notifySubscribers(bytes memory data) external {
         // 1. Make sure the entrance lock is free
@@ -190,6 +191,7 @@ contract EventManager {
      * This function allows the owner to update the incentive value after
      * the contract has been deployed
      * @param incentive The new incentive value
+     * @dev The owner contract must call this function directly
      */
     function updateIncentive(uint incentive) external {
         // 1. check that the caller is the owner
@@ -205,6 +207,7 @@ contract EventManager {
     /**
      * Add a publisher to share this event manager
      * @param publisherAddr The address of the publisher
+     * @dev The owner contract must call this function directly
      */
     function addPublisher(address publisherAddr) external {
         // 1. check that the caller is the owner
