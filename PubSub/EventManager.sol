@@ -107,8 +107,8 @@ contract EventManager {
 
         uint usedGas   = 0;
         uint costWei   = 0;
-        uint limitWei  = 0;
         uint limitGas  = 0;
+        uint fairLimitGas = gasleft() / (numSubscribers + 1);
 
         for (uint i = 0; i < numSubscribers; i++) {
             address subscriberAddr = m_subscriberAddrs[i];
@@ -117,13 +117,21 @@ contract EventManager {
                 m_subscriberMap[subscriberAddr];
 
             if (mappedSubscriber.balanceWei > incentPerSubWei) {
-                limitWei = mappedSubscriber.balanceWei - incentPerSubWei;
-                limitGas = limitWei / gasPriceWei;
+                // calculate how much gas unit that this subscriber can pay
+                // with its balance
+                limitGas =
+                    (mappedSubscriber.balanceWei - incentPerSubWei) /
+                        gasPriceWei;
+                limitGas = limitGas > fairLimitGas ? fairLimitGas : limitGas;
 
                 usedGas = gasleft();
-                Interface_Subscriber(subscriberAddr).onNotify{
+                try Interface_Subscriber(subscriberAddr).onNotify{
                     gas: limitGas
-                }(data);
+                }(data) {} catch {
+                    // if the subscriber fails, we still want to reimburse
+                    // the sender for the gas used, and notify the next
+                    // subscriber
+                }
                 usedGas -= gasleft(); // (start - end)
 
                 costWei = (usedGas * gasPriceWei) + incentPerSubWei;

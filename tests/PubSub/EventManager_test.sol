@@ -11,7 +11,14 @@ import "remix_accounts.sol";
 
 import {EventManager, Interface_Subscriber} from "../../PubSub/EventManager.sol";
 import {Interface_EventManager} from "../../PubSub/Interface_EventManager.sol";
-import {DummyContract, TestSubscriber} from "./TestUtils.sol";
+import {
+    DummyContract,
+    TestSubscriber,
+    FailingSubscriber,
+    HungrySubscriber,
+    ImcompatibleSubscriber,
+    ReentrySubscriber
+} from "./TestUtils.sol";
 
 
 // File name has to end with '_test.sol', this file can contain more than one testSuite contracts
@@ -356,5 +363,259 @@ contract EventManager_testSuite {
         //     actCost2Wei, expCostWei,
         //     "Incorrect balance after subscriber 2 received the notification"
         // );
+    }
+
+    /// #value: 9000000000000000000
+    function failingSubscriber() public payable {
+        Assert.equal(
+            msg.value,
+            9000000000000000000,
+            "Incorrect value sent to contract"
+        );
+
+        TestSubscriber subscriber1 = new TestSubscriber();
+        FailingSubscriber subscriber2 = new FailingSubscriber();
+        TestSubscriber subscriber3 = new TestSubscriber();
+
+        // Create a new EventManager contract
+        EventManager eventMgrInst1 = new EventManager(address(this));
+        address eventMgr1Addr = address(eventMgrInst1);
+
+        // subscribe subscribers
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber1));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber2));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber3));
+
+        bytes memory testInput = "Hello World";
+
+        // notify subscribers
+        try Interface_EventManager(eventMgr1Addr).notifySubscribers(testInput) {
+            Assert.ok(true, "Subscribers notified");
+        } catch Error(string memory reason) {
+            Assert.ok(false, reason);
+        } catch {
+            Assert.ok(false, "Unexpected error when notifying subscribers");
+        }
+
+        // check if benign subscribers received the notification
+        Assert.ok(
+            keccak256(subscriber1.m_recvData()) == keccak256(testInput),
+            "Subscriber 1 did not receive the notification"
+        );
+        Assert.ok(
+            keccak256(subscriber3.m_recvData()) == keccak256(testInput),
+            "Subscriber 3 did not receive the notification"
+        );
+        // malicious subscriber should not be notified
+        Assert.ok(
+            keccak256(subscriber2.m_recvData()) == keccak256("before notify"),
+            "Subscriber 2 received the notification"
+        );
+
+        // check if malicious subscriber's balance has been deducted
+        uint balance2 = Interface_EventManager(
+            eventMgr1Addr
+        ).subscriberCheckBalance(address(subscriber2));
+        Assert.ok(
+            balance2 < 1000000000000000000,
+            "Subscriber 2's balance not deducted"
+        );
+    }
+
+    /// #value: 9000000000000000000
+    function hungrySubscriber() public payable {
+        Assert.equal(
+            msg.value,
+            9000000000000000000,
+            "Incorrect value sent to contract"
+        );
+
+        TestSubscriber subscriber1 = new TestSubscriber();
+        HungrySubscriber subscriber2 = new HungrySubscriber();
+        TestSubscriber subscriber3 = new TestSubscriber();
+
+        // Create a new EventManager contract
+        EventManager eventMgrInst1 = new EventManager(address(this));
+        address eventMgr1Addr = address(eventMgrInst1);
+
+        // subscribe subscribers
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber1));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber2));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber3));
+
+        bytes memory testInput = "Hello World";
+
+        // notify subscribers
+        try Interface_EventManager(eventMgr1Addr).notifySubscribers{
+            gas: 1000000
+        }(testInput) {
+            Assert.ok(true, "Subscribers notified");
+        } catch Error(string memory reason) {
+            Assert.ok(false, reason);
+        } catch {
+            Assert.ok(false, "Unexpected error when notifying subscribers");
+        }
+
+        // check if benign subscribers received the notification
+        Assert.ok(
+            keccak256(subscriber1.m_recvData()) == keccak256(testInput),
+            "Subscriber 1 did not receive the notification"
+        );
+        Assert.ok(
+            keccak256(subscriber3.m_recvData()) == keccak256(testInput),
+            "Subscriber 3 did not receive the notification"
+        );
+        // malicious subscriber should not be notified
+        Assert.ok(
+            keccak256(subscriber2.m_recvData()) == keccak256("before notify"),
+            "Subscriber 2 received the notification"
+        );
+
+        // check if malicious subscriber's balance has been deducted
+        uint balance2 = Interface_EventManager(
+            eventMgr1Addr
+        ).subscriberCheckBalance(address(subscriber2));
+        Assert.ok(
+            balance2 < 1000000000000000000,
+            "Subscriber 2's balance not deducted"
+        );
+    }
+
+    /// #value: 9000000000000000000
+    function imcompatibleSubscriber() public payable {
+        Assert.equal(
+            msg.value,
+            9000000000000000000,
+            "Incorrect value sent to contract"
+        );
+
+        TestSubscriber subscriber1 = new TestSubscriber();
+        ImcompatibleSubscriber subscriber2 = new ImcompatibleSubscriber();
+        TestSubscriber subscriber3 = new TestSubscriber();
+
+        // Create a new EventManager contract
+        EventManager eventMgrInst1 = new EventManager(address(this));
+        address eventMgr1Addr = address(eventMgrInst1);
+
+        // subscribe subscribers
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber1));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber2));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber3));
+
+        bytes memory testInput = "Hello World";
+
+        // notify subscribers
+        try Interface_EventManager(eventMgr1Addr).notifySubscribers(testInput) {
+            Assert.ok(true, "Subscribers notified");
+        } catch Error(string memory reason) {
+            Assert.ok(false, reason);
+        } catch {
+            Assert.ok(false, "Unexpected error when notifying subscribers");
+        }
+
+        // check if benign subscribers received the notification
+        Assert.ok(
+            keccak256(subscriber1.m_recvData()) == keccak256(testInput),
+            "Subscriber 1 did not receive the notification"
+        );
+        Assert.ok(
+            keccak256(subscriber3.m_recvData()) == keccak256(testInput),
+            "Subscriber 3 did not receive the notification"
+        );
+        // malicious subscriber should not be notified
+        Assert.ok(
+            keccak256(subscriber2.m_recvData()) == keccak256("before notify"),
+            "Subscriber 2 received the notification"
+        );
+
+        // check if malicious subscriber's balance has been deducted
+        uint balance2 = Interface_EventManager(
+            eventMgr1Addr
+        ).subscriberCheckBalance(address(subscriber2));
+        Assert.ok(
+            balance2 < 1000000000000000000,
+            "Subscriber 2's balance not deducted"
+        );
+    }
+
+    /// #value: 9000000000000000000
+    function reentrySubscriberSubscriber() public payable {
+        Assert.equal(
+            msg.value,
+            9000000000000000000,
+            "Incorrect value sent to contract"
+        );
+
+        // Create a new EventManager contract
+        EventManager eventMgrInst1 = new EventManager(address(this));
+        address eventMgr1Addr = address(eventMgrInst1);
+
+        TestSubscriber subscriber1 = new TestSubscriber();
+        ReentrySubscriber subscriber2 = new ReentrySubscriber(eventMgr1Addr);
+        TestSubscriber subscriber3 = new TestSubscriber();
+
+        // subscribe subscribers
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber1));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber2));
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(address(subscriber3));
+
+        bytes memory testInput = "Hello World";
+
+        // notify subscribers
+        try Interface_EventManager(eventMgr1Addr).notifySubscribers(testInput) {
+            Assert.ok(true, "Subscribers notified");
+        } catch Error(string memory reason) {
+            Assert.ok(false, reason);
+        } catch {
+            Assert.ok(false, "Unexpected error when notifying subscribers");
+        }
+
+        // check if benign subscribers received the notification
+        Assert.ok(
+            keccak256(subscriber1.m_recvData()) == keccak256(testInput),
+            "Subscriber 1 did not receive the notification"
+        );
+        Assert.ok(
+            keccak256(subscriber3.m_recvData()) == keccak256(testInput),
+            "Subscriber 3 did not receive the notification"
+        );
+        // malicious subscriber should not be notified
+        Assert.ok(
+            keccak256(subscriber2.m_recvData()) == keccak256("before notify"),
+            "Subscriber 2 received the notification"
+        );
+
+        // check if malicious subscriber's balance has been deducted
+        uint balance2 = Interface_EventManager(
+            eventMgr1Addr
+        ).subscriberCheckBalance(address(subscriber2));
+        Assert.ok(
+            balance2 < 1000000000000000000,
+            "Subscriber 2's balance not deducted"
+        );
     }
 }
