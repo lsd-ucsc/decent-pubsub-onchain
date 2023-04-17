@@ -39,10 +39,13 @@ contract PubSubService_testSuite {
 
         // first publisher
 
-        address publisherAddr1;
+        address publisherAddr1 = address(new TestPublisher());
+        address expEventMgrAddr1;
 
-        try new TestPublisher(pubSubServiceAddr) returns (TestPublisher pub) {
-            publisherAddr1 = address(pub);
+        try TestPublisher(publisherAddr1).register(pubSubServiceAddr)
+            returns (address addr)
+        {
+            expEventMgrAddr1 = addr;
             Assert.ok(true, "Publisher registered");
         } catch Error(string memory reason) {
             Assert.ok(false, reason);
@@ -50,7 +53,6 @@ contract PubSubService_testSuite {
             Assert.ok(false, "Publisher registration failed");
         }
 
-        address expEventMgrAddr1 = TestPublisher(publisherAddr1).m_eventMgrAddr();
         address actEventMgrAddr1;
 
         try Interface_PubSubService(
@@ -72,10 +74,13 @@ contract PubSubService_testSuite {
 
         // second publisher
 
-        address publisherAddr2;
+        address publisherAddr2 = address(new TestPublisher());
+        address expEventMgrAddr2;
 
-        try new TestPublisher(pubSubServiceAddr) returns (TestPublisher pub) {
-            publisherAddr2 = address(pub);
+        try TestPublisher(publisherAddr2).register(pubSubServiceAddr)
+            returns (address addr)
+        {
+            expEventMgrAddr2 = addr;
             Assert.ok(true, "Publisher registered");
         } catch Error(string memory reason) {
             Assert.ok(false, reason);
@@ -83,7 +88,6 @@ contract PubSubService_testSuite {
             Assert.ok(false, "Publisher registration failed");
         }
 
-        address expEventMgrAddr2 = TestPublisher(publisherAddr2).m_eventMgrAddr();
         address actEventMgrAddr2;
 
         try Interface_PubSubService(
@@ -150,7 +154,8 @@ contract PubSubService_testSuite {
         address pubSubServiceAddr = address(pubSubService);
 
         // Publisher
-        TestPublisher publisher = new TestPublisher(pubSubServiceAddr);
+        TestPublisher publisher = new TestPublisher();
+        publisher.register(pubSubServiceAddr);
         address publisherAddr = address(publisher);
 
         // Subscriber

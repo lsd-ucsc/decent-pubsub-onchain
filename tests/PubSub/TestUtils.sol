@@ -105,12 +105,19 @@ contract ReentrySubscriber{
 contract TestPublisher{
     address public m_eventMgrAddr;
 
-    constructor(address pubSubServiceAddr) {
-        m_eventMgrAddr = Interface_PubSubService(pubSubServiceAddr).register();
+    constructor() {
     }
 
     function register(address pubSubServiceAddr) external returns (address) {
         m_eventMgrAddr = Interface_PubSubService(pubSubServiceAddr).register();
         return m_eventMgrAddr;
+    }
+
+    function setEventMgrAddr(address eventMgrAddr) external {
+        m_eventMgrAddr = eventMgrAddr;
+    }
+
+    function notifySubscribers(bytes memory data) external {
+        Interface_EventManager(m_eventMgrAddr).notifySubscribers(data);
     }
 }

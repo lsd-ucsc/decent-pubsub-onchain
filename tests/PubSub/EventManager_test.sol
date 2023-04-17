@@ -13,6 +13,7 @@ import {EventManager, Interface_Subscriber} from "../../PubSub/EventManager.sol"
 import {Interface_EventManager} from "../../PubSub/Interface_EventManager.sol";
 import {
     DummyContract,
+    TestPublisher,
     TestSubscriber,
     FailingSubscriber,
     HungrySubscriber,
@@ -61,7 +62,7 @@ contract EventManager_testSuite {
         try Interface_EventManager(eventMgr2Addr).updateIncentive(1000) {
             Assert.ok(false, "Only the owner can update incentive");
         } catch Error(string memory reason) {
-            Assert.equal(reason, "Only the owner can update the incentive", reason);
+            Assert.equal(reason, "Only the owner can update incentive", reason);
         } catch {
             Assert.ok(false, "Unexpected error occurred while updating incentive");
         }
@@ -363,6 +364,42 @@ contract EventManager_testSuite {
         //     actCost2Wei, expCostWei,
         //     "Incorrect balance after subscriber 2 received the notification"
         // );
+    }
+
+    /// #value: 2000000000000000000
+    function unregisteredPublisherNotifiesSubscribers() public payable {
+        Assert.equal(
+            msg.value,
+            2000000000000000000,
+            "Incorrect value sent to contract"
+        );
+
+        // Create a new EventManager contract
+        EventManager eventMgrInst1 = new EventManager(address(this));
+        address eventMgr1Addr = address(eventMgrInst1);
+
+        // Add a subscriber
+        TestSubscriber testSubscriber1 = new TestSubscriber();
+        address subsAddr1 = address(testSubscriber1);
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(subsAddr1);
+
+        // Test Publisher
+        TestPublisher testPublisher1 = new TestPublisher();
+        testPublisher1.setEventMgrAddr(eventMgr1Addr);
+
+        // testing input bytes
+        bytes memory testInput = "Hello World";
+
+        // notify subscribers
+        try testPublisher1.notifySubscribers(testInput) {
+            Assert.ok(false, "Unregistered publisher notified subscribers");
+        } catch Error(string memory reason) {
+            Assert.equal(reason, "Only registered publisher can notify", reason);
+        } catch {
+            Assert.ok(false, "Unexpected error when notifying subscribers");
+        }
     }
 
     /// #value: 9000000000000000000

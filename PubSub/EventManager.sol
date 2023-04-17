@@ -16,15 +16,11 @@ contract EventManager {
         uint    balanceWei;
     }
 
-    struct MappedPubPermission {
-        bool    isPublisher;
-    }
-
     //===== Member variables =====
 
     address[]                               m_subscriberAddrs;
     mapping(address => MappedSubscriber)    m_subscriberMap;
-    mapping(address => MappedPubPermission) m_publisherMap;
+    mapping(address => bool)                m_publisherMap;
 
     address  m_owner;
     uint     m_incentiveWei  = 1000000; // default incentive is 10000 Wei
@@ -42,9 +38,7 @@ contract EventManager {
         m_owner = owner;
 
         // 2. add the owner as a publisher
-        m_publisherMap[owner] = MappedPubPermission({
-            isPublisher: true
-        });
+        m_publisherMap[owner] = true;
     }
 
     //===== external Functions =====
@@ -91,8 +85,8 @@ contract EventManager {
 
         // 2. Make sure the caller is a publisher
         require(
-            m_publisherMap[msg.sender].isPublisher,
-            "Only the registered publisher can send notifications"
+            m_publisherMap[msg.sender],
+            "Only registered publisher can notify"
         );
 
         // 3. Get gas price (Wei per gas unit) that we want to reimburse
@@ -197,7 +191,7 @@ contract EventManager {
         // 1. check that the caller is the owner
         require(
             msg.sender == m_owner,
-            "Only the owner can update the incentive"
+            "Only the owner can update incentive"
         );
 
         // 2. update the incentive
@@ -220,9 +214,7 @@ contract EventManager {
         // since we are just flipping a boolean
 
         // 2. add the publisher to the map of publishers
-        m_publisherMap[publisherAddr] = MappedPubPermission({
-            isPublisher: true
-        });
+        m_publisherMap[publisherAddr] = true;
     }
 
 
