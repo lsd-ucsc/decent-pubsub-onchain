@@ -67,9 +67,14 @@ contract PubSubService {
     /**
      * Subscribe a subscriber to a publisher's event manager
      * @param publisherAddr The address of the publisher
+     * @return address The address of the EventManager contract
      * @dev The subscriber contract must call this function to subscribe
      */
-    function subscribe(address publisherAddr) external payable {
+    function subscribe(address publisherAddr)
+        external
+        payable
+        returns (address)
+    {
         // 1. make sure the publisher has already registered
         require(
             m_eventManagerMap[publisherAddr].init == true,
@@ -84,6 +89,9 @@ contract PubSubService {
         EventManager(eventMgrAddr).addSubscriber{
             value: msg.value
         }(subscriberAddr);
+
+        // 4. return the EventManager contract address
+        return eventMgrAddr;
     }
 
     /**

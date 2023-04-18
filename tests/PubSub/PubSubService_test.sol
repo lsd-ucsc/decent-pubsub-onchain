@@ -155,7 +155,7 @@ contract PubSubService_testSuite {
 
         // Publisher
         TestPublisher publisher = new TestPublisher();
-        publisher.register(pubSubServiceAddr);
+        address eventMgrAddr = publisher.register(pubSubServiceAddr);
         address publisherAddr = address(publisher);
 
         // Subscriber
@@ -164,8 +164,12 @@ contract PubSubService_testSuite {
         // A sccessful subscription
         try subscriber.subscribe{
             value: 100000000
-        }(pubSubServiceAddr, publisherAddr) {
-            Assert.ok(true, "Subscriber subscribed");
+        }(pubSubServiceAddr, publisherAddr) returns (address addr) {
+            Assert.equal(
+                addr,
+                eventMgrAddr,
+                "event manager address does not match"
+            );
         } catch Error(string memory reason) {
             Assert.ok(false, reason);
         } catch (bytes memory) {

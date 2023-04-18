@@ -14,6 +14,7 @@ contract DummyContract {
 
 contract TestSubscriber{
     bytes public m_recvData;
+    address public m_eventMgrAddr;
 
     constructor() {
     }
@@ -25,10 +26,12 @@ contract TestSubscriber{
     function subscribe(address pubSubServiceAddr, address publisherAddr)
         external
         payable
+        returns (address)
     {
-        Interface_PubSubService(pubSubServiceAddr).subscribe{
+        m_eventMgrAddr = Interface_PubSubService(pubSubServiceAddr).subscribe{
             value: msg.value
         }(publisherAddr);
+        return m_eventMgrAddr;
     }
 }
 
