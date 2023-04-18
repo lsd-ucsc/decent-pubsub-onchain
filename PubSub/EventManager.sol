@@ -119,17 +119,22 @@ contract EventManager {
                         gasPriceWei;
                 limitGas = limitGas > fairLimitGas ? fairLimitGas : limitGas;
 
+                costWei = 0; // reset the cost
                 usedGas = gasleft();
                 try Interface_Subscriber(subscriberAddr).onNotify{
                     gas: limitGas
-                }(data) {} catch {
+                }(data) {
+                    // if the notification was successful, incentive will be
+                    // awarded to the sender
+                    costWei += incentPerSubWei;
+                } catch {
                     // if the subscriber fails, we still want to reimburse
                     // the sender for the gas used, and notify the next
                     // subscriber
                 }
                 usedGas -= gasleft(); // (start - end)
 
-                costWei = (usedGas * gasPriceWei) + incentPerSubWei;
+                costWei += (usedGas * gasPriceWei);
 
                 compensateWei               += costWei;
                 mappedSubscriber.balanceWei -= costWei;
