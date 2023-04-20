@@ -202,7 +202,7 @@ contract EventManager_testSuite {
         );
 
         // check balance of subscriber 1
-        uint balance = Interface_EventManager(
+        uint256 balance = Interface_EventManager(
             eventMgr1Addr
         ).subscriberCheckBalance(dummyAddr1);
         Assert.equal(
@@ -296,7 +296,7 @@ contract EventManager_testSuite {
         }
 
         // get expected gas cost of the onNotify function
-        uint expGasCost = 0;
+        uint256 expGasCost = 0;
         Interface_Subscriber(subsAddr1).onNotify(""); // reset recvData
         Interface_Subscriber(subsAddr2).onNotify(""); // reset recvData
         expGasCost = gasleft();
@@ -305,9 +305,9 @@ contract EventManager_testSuite {
         Interface_Subscriber(subsAddr1).onNotify(""); // reset recvData
         Interface_Subscriber(subsAddr2).onNotify(""); // reset recvData
         // calculate expected total cost (gas cost + incentive)
-        // uint expCostWei = (expGasCost * tx.gasprice) + (1000000 / 2);
+        // uint256 expCostWei = (expGasCost * tx.gasprice) + (1000000 / 2);
 
-        uint senderOriBalance = payable(tx.origin).balance;
+        uint256 senderOriBalance = payable(tx.origin).balance;
 
         // notify subscribers
         try Interface_EventManager(eventMgr1Addr).notifySubscribers(testInput) {
@@ -318,7 +318,7 @@ contract EventManager_testSuite {
             Assert.ok(false, "Unexpected error when notifying subscribers");
         }
 
-        uint senderNewBalance = payable(tx.origin).balance;
+        uint256 senderNewBalance = payable(tx.origin).balance;
 
         // check if subscribers received the notification
         Assert.ok(
@@ -331,16 +331,16 @@ contract EventManager_testSuite {
         );
 
         // check balance of subscriber 1
-        uint balance = Interface_EventManager(
+        uint256 balance = Interface_EventManager(
             eventMgr1Addr
         ).subscriberCheckBalance(subsAddr1);
-        uint actCost1Wei = 1000000000000000000 - balance;
+        uint256 actCost1Wei = 1000000000000000000 - balance;
         // check balance of subscriber 2
         balance = Interface_EventManager(
             eventMgr1Addr
         ).subscriberCheckBalance(subsAddr2);
-        uint actCost2Wei = 1000000000000000000 - balance;
-        uint actTotalCostWei = 2000000000000000000 - address(eventMgrInst1).balance;
+        uint256 actCost2Wei = 1000000000000000000 - balance;
+        uint256 actTotalCostWei = 2000000000000000000 - address(eventMgrInst1).balance;
 
         Assert.ok(actCost1Wei > 0, "Subscriber 1 has not cost");
         Assert.ok(actCost2Wei > 0, "Subscriber 2 has not cost");
@@ -364,6 +364,79 @@ contract EventManager_testSuite {
         //     actCost2Wei, expCostWei,
         //     "Incorrect balance after subscriber 2 received the notification"
         // );
+    }
+
+    /// #value: 2000000000000000000
+    function notifySubscribersWithInsufficientGas() public payable {
+        Assert.equal(
+            msg.value,
+            2000000000000000000,
+            "Incorrect value sent to contract"
+        );
+
+        // Create a new EventManager contract
+        EventManager eventMgrInst1 = new EventManager(address(this));
+        address eventMgr1Addr = address(eventMgrInst1);
+
+        // Add a subscriber
+        TestSubscriber testSubscriber1 = new TestSubscriber();
+        address subsAddr1 = address(testSubscriber1);
+        Interface_EventManager(eventMgr1Addr).addSubscriber{
+            value: 1000000000000000000
+        }(subsAddr1);
+
+        // testing input bytes
+        bytes memory testInput = "Hello World";
+
+        // notify subscribers
+        try Interface_EventManager(eventMgr1Addr).notifySubscribers{
+            gas: 202000
+        }(testInput) {
+            Assert.ok(false, "Subscribers notified");
+        } catch Error(string memory reason) {
+            Assert.equal(reason, "Not enough gas left", reason);
+        } catch {
+            Assert.ok(false, "Unexpected error when notifying subscribers");
+        }
+    }
+
+    function setPerSubscriberLimitGas() public {
+        // Create a new EventManager contract
+        EventManager eventMgrInst1 = new EventManager(address(this));
+        address eventMgr1Addr = address(eventMgrInst1);
+
+        // set per subscriber limit gas
+        try Interface_EventManager(
+            eventMgr1Addr
+        ).setPerSubscriberLimitGas(10000) {
+            Assert.ok(true, "Per subscriber limit gas set");
+        } catch Error(string memory reason) {
+            Assert.ok(false, reason);
+        } catch {
+            Assert.ok(
+                false,
+                "Unexpected error when setting per subscriber limit gas"
+            );
+        }
+
+        // Create a dummy contract and make it as the owner
+        DummyContract dummyContract = new DummyContract();
+        EventManager eventMgrInst2 = new EventManager(address(dummyContract));
+        address eventMgr2Addr = address(eventMgrInst2);
+
+        // set per subscriber limit gas
+        try Interface_EventManager(
+            eventMgr2Addr
+        ).setPerSubscriberLimitGas(10000) {
+            Assert.ok(false, "Per subscriber limit gas set by non-owner");
+        } catch Error(string memory reason) {
+            Assert.equal(reason, "Only the owner can set the limit", reason);
+        } catch {
+            Assert.ok(
+                false,
+                "Unexpected error when setting per subscriber limit gas"
+            );
+        }
     }
 
     /// #value: 2000000000000000000
@@ -456,7 +529,7 @@ contract EventManager_testSuite {
         );
 
         // check if malicious subscriber's balance has been deducted
-        uint balance2 = Interface_EventManager(
+        uint256 balance2 = Interface_EventManager(
             eventMgr1Addr
         ).subscriberCheckBalance(address(subscriber2));
         Assert.ok(
@@ -521,7 +594,7 @@ contract EventManager_testSuite {
         );
 
         // check if malicious subscriber's balance has been deducted
-        uint balance2 = Interface_EventManager(
+        uint256 balance2 = Interface_EventManager(
             eventMgr1Addr
         ).subscriberCheckBalance(address(subscriber2));
         Assert.ok(
@@ -584,7 +657,7 @@ contract EventManager_testSuite {
         );
 
         // check if malicious subscriber's balance has been deducted
-        uint balance2 = Interface_EventManager(
+        uint256 balance2 = Interface_EventManager(
             eventMgr1Addr
         ).subscriberCheckBalance(address(subscriber2));
         Assert.ok(
@@ -650,7 +723,7 @@ contract EventManager_testSuite {
         );
 
         // check if malicious subscriber's balance has been deducted
-        uint balance2 = Interface_EventManager(
+        uint256 balance2 = Interface_EventManager(
             eventMgr1Addr
         ).subscriberCheckBalance(address(subscriber2));
         Assert.ok(

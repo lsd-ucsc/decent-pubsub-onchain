@@ -13,7 +13,7 @@ contract EventManager {
 
     struct MappedSubscriber {
         bool    init;
-        uint    balanceWei;
+        uint256 balanceWei;
     }
 
     //===== Member variables =====
@@ -22,10 +22,15 @@ contract EventManager {
     mapping(address => MappedSubscriber)    m_subscriberMap;
     mapping(address => bool)                m_publisherMap;
 
+    // contract states
     address  m_owner;
-    uint     m_incentiveWei  = 1000000; // default incentive is 10000 Wei
-    uint256  m_minDepositWei = 100000000;
     bool     m_entranceLock  = false;
+
+    // reimbursement, gas cost, and gas limits
+    uint256 m_incentiveWei   = 1000000;
+    uint256 m_minDepositWei  = 100000000;
+    uint256 m_perSubLimitGas = 202000;
+    uint256 constant FINISHING_COST_GAS = 90000;
 
     //===== Events =====
 
@@ -92,20 +97,27 @@ contract EventManager {
         // 3. Get gas price (Wei per gas unit) that we want to reimburse
         uint256 gasPriceWei = tx.gasprice;
 
-        // 4. Notify all subscribers and reimburse the sender for the gas used
-
-        // maintain running track of how much to compensate tx.origin
+        // 4. maintain running track of how much to compensate tx.origin
         uint256 compensateWei = 0;
 
-        uint numSubscribers   = m_subscriberAddrs.length;
-        uint incentPerSubWei  = m_incentiveWei / numSubscribers;
+        uint256 numSubscribers   = m_subscriberAddrs.length;
+        uint256 incentPerSubWei  = m_incentiveWei / numSubscribers;
 
-        uint usedGas   = 0;
-        uint costWei   = 0;
-        uint limitGas  = 0;
-        uint fairLimitGas = gasleft() / (numSubscribers + 1);
+        uint256 usedGas   = 0;
+        uint256 costWei   = 0;
+        uint256 limitGas  = 0;
 
-        for (uint i = 0; i < numSubscribers; i++) {
+        // 5. Make sure the specified gas limit is enough for all subscribers's
+        //    max gas limit
+        require(
+            gasleft() >= ((m_perSubLimitGas * numSubscribers) +
+                FINISHING_COST_GAS),
+            "Not enough gas left"
+        );
+        uint fairLimitGas = (gasleft() - FINISHING_COST_GAS) / numSubscribers;
+
+        // 6. Notify all subscribers and reimburse the sender for the gas used
+        for (uint256 i = 0; i < numSubscribers; i++) {
             address subscriberAddr = m_subscriberAddrs[i];
             // get a reference to the mapped subscriber
             MappedSubscriber storage mappedSubscriber =
@@ -169,12 +181,12 @@ contract EventManager {
     /**
      * Check the balance of a subscriber
      * @param subscriber The address of the subscriber
-     * @return uint The balance of the subscriber
+     * @return uint256 The balance of the subscriber
      */
     function subscriberCheckBalance(address subscriber)
         external
         view
-        returns(uint)
+        returns(uint256)
     {
         // 1. check that the subscriber has been added
         require(
@@ -192,7 +204,7 @@ contract EventManager {
      * @param incentive The new incentive value
      * @dev The owner contract must call this function directly
      */
-    function updateIncentive(uint incentive) external {
+    function updateIncentive(uint256 incentive) external {
         // 1. check that the caller is the owner
         require(
             msg.sender == m_owner,
@@ -222,5 +234,18 @@ contract EventManager {
         m_publisherMap[publisherAddr] = true;
     }
 
+    /**
+     * Set the per subscriber minimum gas limit on the notifying call
+     */
+    function setPerSubscriberLimitGas(uint256 limitGas) external {
+        // 1. check that the caller is the owner
+        require(
+            msg.sender == m_owner,
+            "Only the owner can set the limit"
+        );
+
+        // 2. set the limit
+        m_perSubLimitGas = limitGas;
+    }
 
 }

@@ -61,7 +61,7 @@ contract HungrySubscriber{
 
     function onNotify(bytes memory data) external {
         // this should consume all remaining gases
-        uint i = 0;
+        uint32 i = 0;
         while(gasleft() > 0) {
             i++;
             if (i >= 1000000) {

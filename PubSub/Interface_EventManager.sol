@@ -26,12 +26,12 @@ interface Interface_EventManager {
     /**
      * Check the balance of a subscriber
      * @param subscriber The address of the subscriber
-     * @return uint The balance of the subscriber
+     * @return uint256 The balance of the subscriber
      */
     function subscriberCheckBalance(address subscriber)
         external
         view
-        returns(uint);
+        returns(uint256);
 
     /**
      * This function allows the owner to update the incentive value after
@@ -39,7 +39,7 @@ interface Interface_EventManager {
      * @param incentive The new incentive value
      * @dev The owner contract must call this function directly
      */
-    function updateIncentive(uint incentive) external;
+    function updateIncentive(uint256 incentive) external;
 
     /**
      * Add a publisher to share this event manager
@@ -47,4 +47,9 @@ interface Interface_EventManager {
      * @dev The owner contract must call this function directly
      */
     function addPublisher(address publisherAddr) external;
+
+    /**
+     * Set the per subscriber minimum gas limit on the notifying call
+     */
+    function setPerSubscriberLimitGas(uint256 limitGas) external;
 }
