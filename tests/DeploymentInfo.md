@@ -3,8 +3,10 @@
 ## PubSub Service and HelloWorldPublisher/Subscriber
 
 - Goerli Testnet
-  - Compiled with `0.8.19+commit.7dd6d404`
+  - Compiled with `0.8.19+commit.7dd6d404.Emscripten.clang`
   - Commit version: feba519
+  - Optimization: `true`
+    - Number of run: `200`
   - PubSubService:
     - `0x55732D31B4A609a2A2E7d85EEE6a76001CC37b8b`
   - HelloWorldPublisher
