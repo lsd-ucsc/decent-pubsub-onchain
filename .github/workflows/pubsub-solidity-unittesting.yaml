@@ -16,7 +16,7 @@ on:
 
 jobs:
   run_sol_contracts_job:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: A job to run solidity unit tests on github actions CI
     steps:
     - name: Checkout
