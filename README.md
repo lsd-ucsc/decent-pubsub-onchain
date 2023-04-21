@@ -5,7 +5,7 @@ Solidity code for the on-chain component of Decentagram project
 
 - GitHub action will automatically build releasing smart contracts on every
   version tag
-- The latest release build can be found at [Releases](./releases)
+- The latest release build can be found at [Releases](../../releases)
 
 ## Build Locally
 
