@@ -1,0 +1,30 @@
+name: Running Solidity Unit Tests for PubSub contracts
+
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'PubSub/**'
+      - 'tests/PubSub/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'PubSub/**'
+      - 'tests/PubSub/**'
+
+
+jobs:
+  run_sol_contracts_job:
+    runs-on: ubuntu-22.04
+    name: A job to run solidity unit tests on github actions CI
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Run Solidity Unit Testing Action
+      uses: EthereumRemix/sol-test@v1.1
+      with:
+        test-path: 'tests/PubSub'
+        compiler-version: '0.8.19'
+        optimize: true
+        optimizer-runs: 200

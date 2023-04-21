@@ -1,2 +1,7 @@
 .idea
+.deps
+.debugger
 
+artifacts/
+
+build/

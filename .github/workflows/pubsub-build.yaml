@@ -1,0 +1,64 @@
+name: Build test for PubSub contracts
+
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'PubSub/**'
+      - 'tests/PubSub/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'PubSub/**'
+      - 'tests/PubSub/**'
+
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        node-version: [18.16.0]
+        solc-version: [0.8.19]
+    name: A job to build PubSub contracts
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Installing Node ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Installing solc compiler
+      run: |
+        npm install -g solc@${{ matrix.solc-version }}
+
+    - name: Compiling contracts for PubSub/EventManager.sol
+      run: |
+        solcjs  --optimize --optimize-runs 200 --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/EventManager.sol
+        solcjs  --optimize --optimize-runs 200 --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/EventManager.sol
+
+    - name: Compiling contracts for PubSub/PubSubService.sol
+      run: |
+        solcjs  --optimize --optimize-runs 200 --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/PubSubService.sol
+        solcjs  --optimize --optimize-runs 200 --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/PubSubService.sol
+
+    - name: Renaming built binary and abi
+      run: |
+        mv ./build/PubSub_EventManager_sol_EventManager.bin   ./build/EventManager.bin
+        mv ./build/PubSub_EventManager_sol_EventManager.abi   ./build/EventManager.abi
+        mv ./build/PubSub_PubSubService_sol_PubSubService.bin ./build/PubSubService.bin
+        mv ./build/PubSub_PubSubService_sol_PubSubService.abi ./build/PubSubService.abi
+
+    - name: Calculating checksums of the binary
+      run: |
+        sha256sum ./build/EventManager.bin  >> ./build/checksums.txt
+        sha256sum ./build/EventManager.abi  >> ./build/checksums.txt
+        sha256sum ./build/PubSubService.bin >> ./build/checksums.txt
+        sha256sum ./build/PubSubService.abi >> ./build/checksums.txt
+
+    - name: Print checksums
+      run: |
+        cat ./build/checksums.txt

@@ -15,6 +15,3 @@ ganache-cli -d -a 20 --network-id 1337
 -d = deterministic (deterministic private keys for testing)
 -a 20 = create 20 accounts
 ```
-
-# ToDo
-1. Add new subscriber ad-hoc (when a new subscriber joins, they should receive the blacklist) 
