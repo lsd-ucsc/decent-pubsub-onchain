@@ -4,8 +4,9 @@ CONTRACTS   := \
 	PubSubService
 
 
-all: $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
-	 $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .bin,$(CONTRACTS)))
+all:    $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
+		$(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .bin,$(CONTRACTS))) \
+		$(addprefix ../build/$(MODULE_NAME)/,checksums.txt)
 
 
 ../build/nodeenv.state:
@@ -38,9 +39,21 @@ all: $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
 	deactivate_node
 
 
+../build/$(MODULE_NAME)/checksums.txt:  $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
+										$(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .bin,$(CONTRACTS)))
+	( \
+		cd ../build/$(MODULE_NAME); \
+		sha256sum $(addsuffix .abi,$(CONTRACTS)) $(addsuffix .bin,$(CONTRACTS)) > checksums.txt; \
+	)
+
+
+checksums: ../build/$(MODULE_NAME)/checksums.txt
+
+
 clean:
 	rm -f   $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
-			$(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .bin,$(CONTRACTS)))
+			$(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .bin,$(CONTRACTS))) \
+			$(addprefix ../build/$(MODULE_NAME)/,checksums.txt)
 
 
-.PHONY: all clean
+.PHONY: all clean checksums
