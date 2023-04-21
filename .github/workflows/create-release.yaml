@@ -76,14 +76,16 @@ jobs:
         echo "- tests/HelloWorldPublisher.sol"  >> ./build/release_note.md
         echo "- tests/HelloWorldSubscriber.sol" >> ./build/release_note.md
         echo "" >> ./build/release_note.md
-        echo "## Build configurations"                  >> ./build/release_note.md
-        echo "- OS: ${{ matrix.os }}"                   >> ./build/release_note.md
-        echo "- Node version: $(node --version)"        >> ./build/release_note.md
-        echo "- Solc version: $(solcjs --version)"      >> ./build/release_note.md
-        echo "- Optimizations: ${{ matrix.opt-flags }}" >> ./build/release_note.md
+        echo "## Build configurations"                      >> ./build/release_note.md
+        echo "- OS: \`${{ matrix.os }}\`"                   >> ./build/release_note.md
+        echo "- Node version: \`$(node --version)\`"        >> ./build/release_note.md
+        echo "- Solc version: \`$(solcjs --version)\`"      >> ./build/release_note.md
+        echo "- Optimizations: \`${{ matrix.opt-flags }}\`" >> ./build/release_note.md
         echo "" >> ./build/release_note.md
         echo "## Checksums"       >> ./build/release_note.md
+        echo "\`\`\`"             >> ./build/release_note.md
         cat ./build/checksums.txt >> ./build/release_note.md
+        echo "\`\`\`"             >> ./build/release_note.md
         echo "" >> ./build/release_note.md
 
     - name: Release
