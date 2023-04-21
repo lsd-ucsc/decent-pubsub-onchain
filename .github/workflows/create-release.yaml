@@ -1,0 +1,101 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  create_release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04 ]
+        node-version: [ 18.16.0 ]
+        solc-version: [ 0.8.19 ]
+        opt-flags: [ "--optimize --optimize-runs 200" ]
+    name: A job to create a release
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Installing Node ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Installing solc compiler
+      run: |
+        npm install -g solc@${{ matrix.solc-version }}
+
+    - name: Compiling contracts for PubSub/EventManager.sol
+      run: |
+        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/EventManager.sol
+        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/EventManager.sol
+        mv ./build/PubSub_EventManager_sol_EventManager.bin   ./build/EventManager.bin
+        mv ./build/PubSub_EventManager_sol_EventManager.abi   ./build/EventManager.abi
+
+    - name: Compiling contracts for PubSub/PubSubService.sol
+      run: |
+        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/PubSubService.sol
+        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/PubSubService.sol
+        mv ./build/PubSub_PubSubService_sol_PubSubService.bin ./build/PubSubService.bin
+        mv ./build/PubSub_PubSubService_sol_PubSubService.abi ./build/PubSubService.abi
+
+    - name: Compiling contracts for tests/HelloWorldSubscriber.sol
+      run: |
+        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldSubscriber.sol
+        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldSubscriber.sol
+        mv ./build/tests_HelloWorldSubscriber_sol_HelloWorldSubscriber.bin ./build/HelloWorldSubscriber.bin
+        mv ./build/tests_HelloWorldSubscriber_sol_HelloWorldSubscriber.abi ./build/HelloWorldSubscriber.abi
+
+    - name: Compiling contracts for tests/HelloWorldPublisher.sol
+      run: |
+        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldPublisher.sol
+        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldPublisher.sol
+        mv ./build/tests_HelloWorldPublisher_sol_HelloWorldPublisher.bin   ./build/HelloWorldPublisher.bin
+        mv ./build/tests_HelloWorldPublisher_sol_HelloWorldPublisher.abi   ./build/HelloWorldPublisher.abi
+
+    - name: Calculating checksums of the binary
+      run: |
+        sha256sum ./build/EventManager.bin  >> ./build/checksums.txt
+        sha256sum ./build/EventManager.abi  >> ./build/checksums.txt
+        sha256sum ./build/PubSubService.bin >> ./build/checksums.txt
+        sha256sum ./build/PubSubService.abi >> ./build/checksums.txt
+        sha256sum ./build/HelloWorldPublisher.bin  >> ./build/checksums.txt
+        sha256sum ./build/HelloWorldPublisher.abi  >> ./build/checksums.txt
+        sha256sum ./build/HelloWorldSubscriber.bin >> ./build/checksums.txt
+        sha256sum ./build/HelloWorldSubscriber.abi >> ./build/checksums.txt
+
+    - name: Generate release note
+      run: |
+        echo "# Release note"                   >> ./build/release_note.md
+        echo "## Contracts"                     >> ./build/release_note.md
+        echo "- PubSub/EventManager.sol"        >> ./build/release_note.md
+        echo "- PubSub/PubSubService.sol"       >> ./build/release_note.md
+        echo "- tests/HelloWorldPublisher.sol"  >> ./build/release_note.md
+        echo "- tests/HelloWorldSubscriber.sol" >> ./build/release_note.md
+        echo "" >> ./build/release_note.md
+        echo "## Build configurations"                  >> ./build/release_note.md
+        echo "- OS: ${{ matrix.os }}"                   >> ./build/release_note.md
+        echo "- Node version: $(node --version)"        >> ./build/release_note.md
+        echo "- Solc version: $(solcjs --version)"      >> ./build/release_note.md
+        echo "- Optimizations: ${{ matrix.opt-flags }}" >> ./build/release_note.md
+        echo "" >> ./build/release_note.md
+        echo "## Checksums"       >> ./build/release_note.md
+        cat ./build/checksums.txt >> ./build/release_note.md
+        echo "" >> ./build/release_note.md
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: ${{ github.workspace }}/build/release_note.md
+        files: |
+          ${{ github.workspace }}/build/EventManager.bin
+          ${{ github.workspace }}/build/EventManager.abi
+          ${{ github.workspace }}/build/PubSubService.bin
+          ${{ github.workspace }}/build/PubSubService.abi
+          ${{ github.workspace }}/build/HelloWorldPublisher.bin
+          ${{ github.workspace }}/build/HelloWorldPublisher.abi
+          ${{ github.workspace }}/build/HelloWorldSubscriber.bin
+          ${{ github.workspace }}/build/HelloWorldSubscriber.abi
