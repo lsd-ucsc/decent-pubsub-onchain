@@ -1,6 +1,7 @@
 .idea
 .deps
 .debugger
+.vscode
 
 artifacts/
 
