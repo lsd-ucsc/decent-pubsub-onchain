@@ -13,12 +13,20 @@ import json
 import logging
 import os
 import urllib.request
+import web3
 
 from eth_account.datastructures import SignedTransaction
 from typing import Any, Dict, List, Tuple, Union
 from web3 import Web3 # python3 -m pip install web3
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.types import TxReceipt
+
+# check web3 version
+if list(map(int, web3.__version__.split('.'))) < [ 6, 2, 0 ]:
+	raise RuntimeError(
+		'web3 version {} is not supported; '
+		'please upgrade to version 6.2.0 or above.'.format(web3.__version__)
+	)
 
 
 def LoadBytesFromRelease(
@@ -43,10 +51,22 @@ def LoadBytesFromLocal(projConf: dict, contract: str) -> Tuple[str, str]:
 	module = projConf['contractModuleMap'][contract]
 
 	pathAbi = os.path.join(projConf['buildDir'], module, contract + '.abi')
+	if os.path.isfile(pathAbi) is False:
+		raise FileNotFoundError(
+			'Cannot find locally built contract ABI file at {}; '
+			'please build the contract first.'.format(pathAbi)
+		)
+
 	with open(pathAbi, 'r') as f:
 		abiBytes = f.read()
 
 	pathBin = os.path.join(projConf['buildDir'], module, contract + '.bin')
+	if os.path.isfile(pathBin) is False:
+		raise FileNotFoundError(
+			'Cannot find locally built contract BIN file at {}; '
+			'please build the contract first.'.format(pathBin)
+		)
+
 	with open(pathBin, 'r') as f:
 		binBytes = f.read()
 
@@ -381,6 +401,27 @@ def SetupSendingAccount(
 	)
 
 	return privKey
+
+
+def ChecksumGanacheKeysFile(dest: os.PathLike, src: os.PathLike):
+	with open(src, 'r') as f:
+		keysJson: Dict[str, Dict[str, str]] = json.load(f)
+
+	addrs = keysJson['addresses']
+	addrs = {
+		Web3.to_checksum_address(k): Web3.to_checksum_address(v)
+			for k, v in addrs.items()
+	}
+	keysJson['addresses'] = addrs
+
+	privKeys = keysJson['private_keys']
+	privKeys = {
+		Web3.to_checksum_address(k): v for k, v in privKeys.items()
+	}
+	keysJson['private_keys'] = privKeys
+
+	with open(dest, 'w') as f:
+		json.dump(keysJson, f, indent='\t')
 
 
 def main():
