@@ -3,6 +3,8 @@ CONTRACTS   := \
 	HelloWorldPublisher \
 	HelloWorldSubscriber
 
+CHECKSUM_BIN := openssl sha256
+
 
 all:    $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
 		$(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .bin,$(CONTRACTS))) \
@@ -14,36 +16,38 @@ all:    $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
 
 
 ../build/$(MODULE_NAME)/%.bin: %.sol ../build/nodeenv.state
-	. ../build/nodeenv/bin/activate; \
-	solcjs  --optimize --optimize-runs 200 \
-			--bin \
-			--include-path node_modules/ --base-path .. \
-			--output-dir ../build/$(MODULE_NAME)/ \
-			$< && \
-	mv  ../build/$(MODULE_NAME)/$(MODULE_NAME)_$(basename $<)_sol_$(basename $<).bin \
-		../build/$(MODULE_NAME)/$(basename $<).bin && \
-	rm  -f ../build/$(MODULE_NAME)/*_sol_*.bin; \
-	deactivate_node
+	( \
+		. ../build/nodeenv/bin/activate && \
+		solcjs  --optimize --optimize-runs 200 \
+				--bin \
+				--include-path node_modules/ --base-path .. \
+				--output-dir ../build/$(MODULE_NAME)/ \
+				$< && \
+		mv  ../build/$(MODULE_NAME)/$(MODULE_NAME)_$(basename $<)_sol_$(basename $<).bin \
+			../build/$(MODULE_NAME)/$(basename $<).bin && \
+		rm  -f ../build/$(MODULE_NAME)/*_sol_*.bin \
+	)
 
 
 ../build/$(MODULE_NAME)/%.abi: %.sol ../build/nodeenv.state
-	. ../build/nodeenv/bin/activate; \
-	solcjs  --optimize --optimize-runs 200 \
-			--abi \
-			--include-path node_modules/ --base-path .. \
-			--output-dir ../build/$(MODULE_NAME)/ \
-			$< && \
-	mv  ../build/$(MODULE_NAME)/$(MODULE_NAME)_$(basename $<)_sol_$(basename $<).abi \
-		../build/$(MODULE_NAME)/$(basename $<).abi && \
-	rm  -f ../build/$(MODULE_NAME)/*_sol_*.abi; \
-	deactivate_node
+	( \
+		. ../build/nodeenv/bin/activate && \
+		solcjs  --optimize --optimize-runs 200 \
+				--abi \
+				--include-path node_modules/ --base-path .. \
+				--output-dir ../build/$(MODULE_NAME)/ \
+				$< && \
+		mv  ../build/$(MODULE_NAME)/$(MODULE_NAME)_$(basename $<)_sol_$(basename $<).abi \
+			../build/$(MODULE_NAME)/$(basename $<).abi && \
+		rm  -f ../build/$(MODULE_NAME)/*_sol_*.abi \
+	)
 
 
 ../build/$(MODULE_NAME)/checksums.txt:  $(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .abi,$(CONTRACTS))) \
 										$(addprefix ../build/$(MODULE_NAME)/,$(addsuffix .bin,$(CONTRACTS)))
 	( \
 		cd ../build/$(MODULE_NAME); \
-		sha256sum $(addsuffix .abi,$(CONTRACTS)) $(addsuffix .bin,$(CONTRACTS)) > checksums.txt; \
+		$(CHECKSUM_BIN) $(addsuffix .abi,$(CONTRACTS)) $(addsuffix .bin,$(CONTRACTS)) > checksums.txt; \
 	)
 
 
