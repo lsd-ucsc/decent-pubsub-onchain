@@ -133,6 +133,18 @@ def _DetermineGas(
 	return gas
 
 
+def _DetermineMaxPriorFee(
+	w3: Web3,
+) -> int:
+	baseGasFee = w3.eth.gas_price
+	# priority fee is 2% of base fee
+	maxPriorFee = int(baseGasFee * 2) // 100
+	# ensure it's higher than w3.eth.max_priority_fee
+	maxPriorFee = max(maxPriorFee, int(w3.eth.max_priority_fee))
+
+	return maxPriorFee
+
+
 def _FillMessage(
 	w3: Web3,
 	gas: int,
@@ -148,7 +160,7 @@ def _FillMessage(
 	}
 	if privKey is not None:
 		msg['maxFeePerGas'] = int(w3.eth.gas_price * 2)
-		msg['maxPriorityFeePerGas'] = w3.eth.max_priority_fee
+		msg['maxPriorityFeePerGas'] = _DetermineMaxPriorFee(w3)
 
 	return msg
 
@@ -251,6 +263,13 @@ def _DoTransaction(
 
 	receiptJson = json.dumps(json.loads(Web3.to_json(receipt)), indent=4)
 	logger.info('Transaction receipt: {}'.format(receiptJson))
+
+	logger.info('Balance after transaction: {} Ether'.format(
+		w3.from_wei(
+			w3.eth.get_balance(w3.eth.default_account),
+			'ether'
+		)
+	))
 
 	return receipt
 
