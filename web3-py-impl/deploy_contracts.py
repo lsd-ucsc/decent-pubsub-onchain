@@ -11,6 +11,8 @@ import web3.logs
 #
 # import solcx
 from web3.providers import HTTPProvider
+from web3.gas_strategies.rpc import rpc_gas_price_strategy
+
 from web3 import Web3
 import matplotlib.pyplot as plt
 import numpy as np
@@ -92,22 +94,29 @@ def main():
     user_private_key = private_keys_list[0]
     acct_address = web3_interface.get_eth_user(user_private_key).address
 
+    # Set the gas price strategy to system default
+    web3_interface.w3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
 
     print(web3_interface.w3.is_connected())
 
     # # Compile Contracts
     publisher_id, publisher_interface = compile_contract(web3_interface, root_directory, "Publisher.sol")
+    print(f'COMPILING PUBLISHer')
     id, interface = compile_contract(web3_interface, root_directory, "PubSubService.sol")
+    print(f'COMPILING PUBSUB')
     subscriber_id, subscriber_interface = compile_contract(web3_interface, root_directory, "Subscriber.sol")
+    print(f'COMPILING SUBSCRIBER')
 
     notify_add_cost = []
     notify_remove_cost = []
 
     for i in range(1, len(private_keys_list)+1):
         publisher_addr, publisher_contract = web3_interface.deploy_contract(publisher_interface, user_private_key)
+        print(f'DEPLOYED PUBLISHER')
         print(f"PUBLISHER ADDRESS {web3_interface.toCheckSumAddress(publisher_addr)}")
 
         pubsub_addr, pubsub_contract = web3_interface.deploy_contract(interface, user_private_key)
+        print(f"DEPLOYED PUBSUB")
 
         # Publisher register to PubSubService
         transaction = publisher_contract.functions.registerToPubSubService(pubsub_addr).build_transaction(
@@ -119,6 +128,7 @@ def main():
             }
         )
         tx_receipt = submit_transaction(web3_interface, transaction, private_key=user_private_key)
+        print(f"REGISTERED TO PUBSUB")
 
         # Get event manager contract address
         em_addr = publisher_contract.events.EM_CREATED().process_receipt(tx_receipt)[0].args.em_addr
@@ -128,7 +138,7 @@ def main():
         for p_key in private_keys_list[:i]:
             user = web3_interface.get_eth_user(p_key)
             subscriber_addr, subscriber_contract = web3_interface.deploy_contract(subscriber_interface, p_key, publisher_addr, pubsub_addr, 100000010101, value=100000010101)
-            print(f'SUBSCRIBER_ADDR {subscriber_addr}')
+            print(f'DEPLOYED SUBSCRIBER_ADDR {subscriber_addr}')
 
 
         # Add to blacklist
@@ -140,6 +150,7 @@ def main():
             'from': web3_interface.toCheckSumAddress(user.address),
             'chainId': 1337,  # Ganache chain id
             'nonce': web3_interface.getTransactionCount(user),
+            "gasPrice": web3_interface.w3.eth.generate_gas_price(),
         })
         tx_receipt = submit_transaction(web3_interface, transaction, p_key)
         print(f"TX_RECEIPT")
@@ -156,6 +167,7 @@ def main():
             'from': web3_interface.toCheckSumAddress(user.address),
             'chainId': 1337,  # Ganache chain id
             'nonce': web3_interface.getTransactionCount(user),
+            "gasPrice": web3_interface.w3.eth.generate_gas_price(),
         })
         tx_receipt = submit_transaction(web3_interface, transaction, p_key)
         print(f"TX_RECEIPT")

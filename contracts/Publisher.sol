@@ -10,7 +10,7 @@ interface InterfacePubSubService {
 
 interface InterfaceEventManager {
     function addSubscriber(address publisher_addr, uint subscribeContractAddr) external payable;
-    function notify(bytes memory data) external;
+    function notifySubscribers(bytes memory data) external;
 }
 
 contract Publisher {
@@ -53,7 +53,7 @@ contract Publisher {
         officialBL.memberList.push(user);
         officialBL.members[user] = true;
         uint gas = gasleft();
-        InterfaceEventManager(eventManagerAddress).notify(encodeAction(Action.ADD_TO_BLACKLIST, user));
+        InterfaceEventManager(eventManagerAddress).notifySubscribers(encodeAction(Action.ADD_TO_BLACKLIST, user));
         emit GAS_COST(gas - gasleft());
     }
 
@@ -68,7 +68,7 @@ contract Publisher {
         remove(officialBL.memberList, member);
         officialBL.members[member] = false;
         uint gas = gasleft();
-        InterfaceEventManager(eventManagerAddress).notify(encodeAction(Action.DELETE_FROM_BLACKLIST, member));
+        InterfaceEventManager(eventManagerAddress).notifySubscribers(encodeAction(Action.DELETE_FROM_BLACKLIST, member));
         emit GAS_COST(gas - gasleft());
     }
 

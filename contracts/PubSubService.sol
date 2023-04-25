@@ -1,146 +1,367 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-// import {EventManager} from "./EventManager.sol"; // Import EventManager Code
+// Import EventManager Code
+//import {EventManager} from "./EventManager.sol";
 
 
 contract PubSubService {
-    address eventManagerAddr;
-    bool eventManagerInit = false;
 
-    event EM_CREATED(address em_addr);
-    event SubscribedEvent(address member);
+    //===== structs =====
 
-    // constructor(address defaultEventManager, uint deposit) payable {
+    struct MappedEventManager {
+        bool    init;
+        address addr;
+    }
+
+    //===== Member variables =====
+
+    mapping(address => MappedEventManager) m_eventManagerMap;
+
+    //===== Events =====
+
+    event ServiceDeployed(address indexed serviceAddr);
+    event PublisherRegistered(address pubAddr, address eventMgrAddr);
+
+    //===== Constructor =====
+
     constructor() {
-
+        emit ServiceDeployed(address(this));
     }
 
+    //===== external Functions =====
 
-    // Deploys EventManager when Publisher wants to register with PubSub
-    function register() public returns (EventManager) {
-        EventManager contractAddress = new EventManager();
-        eventManagerAddr = address(contractAddress); // convert contract object to address
-        eventManagerInit = true;
-        emit EM_CREATED(eventManagerAddr);
-        return contractAddress;
+    /**
+     * Register a publisher with the PubSubService and spawn a new
+     * corresponding EventManager contract
+     * @return address The address of the newly created EventManager contract
+     * @dev The publisher contract must call this function to register
+     */
+    function register() external returns (address) {
+        // 1. publisher address
+        address publisherAddr = msg.sender;
+
+        // 2. make sure the publisher has not already registered
+        require(
+            m_eventManagerMap[publisherAddr].init == false,
+            "Publisher already registered"
+        );
+
+        // 3. Create a new EventManager contract
+        EventManager eventMgrInst = new EventManager(publisherAddr);
+        address eventMgrAddr = address(eventMgrInst);
+
+        // 4. update the mapping
+        m_eventManagerMap[publisherAddr] = MappedEventManager({
+            init: true,
+            addr: eventMgrAddr
+        });
+
+        // 5. emit event
+        emit PublisherRegistered(publisherAddr, eventMgrAddr);
+
+        // 6. return the EventManager contract address
+        return eventMgrAddr;
     }
 
-    function subscribe(address publisher_addr, uint256 deposit, address subscribeContractAddr) external payable  {
-        require(msg.value > 0, "Deposity > 0");
-        require(msg.value == deposit, "Deposit what you specify");
-        require(eventManagerInit == true, "Event manager not initialized");
-        EventManager(eventManagerAddr).addSubscriber{value: msg.value}(publisher_addr, subscribeContractAddr); // add the subscriber to the event manager for the publisher
-//        emit EM_CREATED(eventManagerAddr, publisher_addr);
+    /**
+     * Subscribe a subscriber to a publisher's event manager
+     * @param publisherAddr The address of the publisher
+     * @return address The address of the EventManager contract
+     * @dev The subscriber contract must call this function to subscribe
+     */
+    function subscribe(address publisherAddr)
+        external
+        payable
+        returns (address)
+    {
+        // 1. make sure the publisher has already registered
+        require(
+            m_eventManagerMap[publisherAddr].init == true,
+            "Publisher not registered"
+        );
+
+        // 2. get the EventManager contract address
+        address eventMgrAddr = m_eventManagerMap[publisherAddr].addr;
+        address subscriberAddr = msg.sender;
+
+        // 3. add the subscriber to the event manager
+        EventManager(eventMgrAddr).addSubscriber{
+            value: msg.value
+        }(subscriberAddr);
+
+        // 4. return the EventManager contract address
+        return eventMgrAddr;
     }
 
+    /**
+     * Get the EventManager contract address for a publisher
+     * @param publisherAddr The address of the publisher
+     * @return address The address of the EventManager contract
+     */
+    function getEventManagerAddr(address publisherAddr)
+        external
+        view
+        returns (address)
+    {
+        // 1. make sure the publisher has already registered
+        require(
+            m_eventManagerMap[publisherAddr].init == true,
+            "Publisher not registered"
+        );
 
-    function getContractBalance() external view returns (uint256) {
-        return address(this).balance;
+        // 2. return the EventManager contract address
+        return m_eventManagerMap[publisherAddr].addr;
     }
+
 }
 
 
 
 interface Interface_Subscriber {
-    function addedUserToBlackList(address user) external;
-    function removeFromBlackList(address user) external;
-    function notify(bytes memory data) external;
+    function onNotify(bytes memory data) external;
 }
+
 
 contract EventManager {
 
-    struct Subscriber {
-        address addr;
-        // address user;
-        address publisher;
-        uint balance;
-        bool init;
-        bool notified;
+    //===== structs =====
+
+    struct MappedSubscriber {
+        bool    init;
+        uint256 balanceWei;
     }
 
+    //===== Member variables =====
 
-    event notfiy_sub(bytes data);
+    address[]                               m_subscriberAddrs;
+    mapping(address => MappedSubscriber)    m_subscriberMap;
+    mapping(address => bool)                m_publisherMap;
 
+    // contract states
+    address  m_owner;
+    bool     m_entranceLock  = false;
 
-    address[] subscriber_addrs;
-    mapping (address => Subscriber) subscribers; // quick look up
+    // reimbursement, gas cost, and gas limits
+    uint256 m_incentiveWei   = 1000000;
+    uint256 m_minDepositWei  = 100000000;
+    uint256 m_perSubLimitGas = 202000;
+    uint256 constant FINISHING_COST_GAS = 90000;
 
-    uint incentive = 1000000; // default incentive is 10000 Wei
-    uint256 min_deposit = 100000000;
-    address owner; // initialize owner variable
+    //===== Events =====
 
-    constructor() {
-        owner = msg.sender; // owner is the address that deployed the smart contract
+    event NotifySubscribers(bytes data);
+
+    //===== Constructor =====
+
+    constructor(address owner) {
+        // 1. set the owner of this event manager
+        m_owner = owner;
+
+        // 2. add the owner as a publisher
+        m_publisherMap[owner] = true;
     }
 
+    //===== external Functions =====
 
-    function addSubscriber(address publisher_addr, address subscribeContractAddr) public payable{
-        // need to "require" msg.sender is a smart contract with the publish function
-        require(msg.value > min_deposit, "You need to send at least the minimum deposit");
-        subscriber_addrs.push(subscribeContractAddr);
-        subscribers[subscribeContractAddr] = Subscriber(subscribeContractAddr, publisher_addr, msg.value, true, false); // add subscriber to map
+    /**
+     * Add a subscriber to the list of subscribers
+     * @param subscriberAddr The address of the subscriber
+     */
+    function addSubscriber(address subscriberAddr) external payable {
+        // 1. check that ther subscriber has not been added
+        require(
+            !m_subscriberMap[subscriberAddr].init,
+            "Subscriber already added"
+        );
 
+        // 2. check that the subscriber has sent enough funds
+        require(
+            msg.value >= m_minDepositWei,
+            "You need to send at least the minimum deposit"
+        );
+
+        // 3. add the subscriber to the list of subscribers
+        m_subscriberAddrs.push(subscriberAddr);
+
+        // 4. add the subscriber to the map of subscribers
+        m_subscriberMap[subscriberAddr] = MappedSubscriber({
+            init:       true,
+            balanceWei: msg.value
+        });
     }
 
+    /**
+     * Notify all subscribers
+     * @param data The data to send to the subscribers
+     * @dev The immediate caller must be a publisher
+     */
+    function notifySubscribers(bytes memory data) external {
+        // 1. Make sure the entrance lock is free
+        require(
+            !m_entranceLock,
+            "Entrance lock is engaged"
+        );
+        m_entranceLock = true;
 
-    function notify(bytes memory data) public {
-        require(gasleft() <= address(this).balance, "Contract doesn't have enough funds");
-        uint256 toCompensate = 0; // maintain running track of how much to compensate msg.sender
-        uint startGas = 0;
-        uint endGas = 0;
+        // 2. Make sure the caller is a publisher
+        require(
+            m_publisherMap[msg.sender],
+            "Only registered publisher can notify"
+        );
 
-        uint numSubscribers = subscriber_addrs.length;
-        uint incentiveCharge = incentive / numSubscribers;
+        // 3. Get gas price (Wei per gas unit) that we want to reimburse
+        uint256 gasPriceWei = tx.gasprice;
+        require(gasPriceWei > 0, "Tx.gasprice is <= 0");
 
-        for (uint i = 0; i < subscriber_addrs.length; i++) {
-            if (subscribers[subscriber_addrs[i]].balance - incentive > 0) {      // only notify subscriber if they have enough balance   (TODO: Maybe we should require a minimum balance? i.e., what is the max cost of this transaction?)
-                // calculate how much notification costs
-                startGas = gasleft();
-                Interface_Subscriber(subscriber_addrs[i]).notify(data);  // This is the notification
-                endGas = gasleft();
-                toCompensate = toCompensate + startGas - endGas;
-                subscribers[subscriber_addrs[i]].balance = subscribers[subscriber_addrs[i]].balance - (incentiveCharge + (startGas-endGas));
+        // 4. maintain running track of how much to compensate tx.origin
+        uint256 compensateWei = 0;
+
+        uint256 numSubscribers   = m_subscriberAddrs.length;
+        uint256 incentPerSubWei  = m_incentiveWei / numSubscribers;
+
+        uint256 usedGas   = 0;
+        uint256 costWei   = 0;
+        uint256 limitGas;
+
+        // 5. Make sure the specified gas limit is enough for all subscribers's
+        //    max gas limit
+        require(
+            gasleft() >= ((m_perSubLimitGas * numSubscribers) +
+                FINISHING_COST_GAS),
+            "Not enough gas left"
+        );
+        uint fairLimitGas = (gasleft() - FINISHING_COST_GAS) / numSubscribers;
+
+        // 6. Notify all subscribers and reimburse the sender for the gas used
+        for (uint256 i = 0; i < numSubscribers; i++) {
+            address subscriberAddr = m_subscriberAddrs[i];
+            // get a reference to the mapped subscriber
+            MappedSubscriber storage mappedSubscriber =
+                m_subscriberMap[subscriberAddr];
+
+            if (mappedSubscriber.balanceWei > incentPerSubWei) {
+                // calculate how much gas unit that this subscriber can pay
+                // with its balance
+                uint256 a = (mappedSubscriber.balanceWei - incentPerSubWei) / gasPriceWei;
+//                limitGas = (mappedSubscriber.balanceWei - incentPerSubWei) / gasPriceWei;
+//                limitGas = limitGas > fairLimitGas ? fairLimitGas : limitGas;
+
+//                costWei = 0; // reset the cost
+//                usedGas = gasleft();
+//                try Interface_Subscriber(subscriberAddr).onNotify{
+//                    gas: limitGas
+//                }(data) {
+//                    // if the notification was successful, incentive will be
+//                    // awarded to the sender
+//                    costWei += incentPerSubWei;
+//                } catch {
+//                    // if the subscriber fails, we still want to reimburse
+//                    // the sender for the gas used, and notify the next
+//                    // subscriber
+//                }
+//                usedGas -= gasleft(); // (start - end)
+//
+//                costWei += (usedGas * gasPriceWei);
+//
+//                compensateWei               += costWei;
+//                mappedSubscriber.balanceWei -= costWei;
             }
         }
-        emit notfiy_sub(data);
-        // transfer compensate funds for notifications to the user that initiated the "add to blacklist" function
-        require(toCompensate < address(this).balance, "Contract doesn't have enough funds");
 
-        // msg.sender = invoking address
-        // tx.origin = original invoking address
-        (bool success, ) = payable(msg.sender).call{value: toCompensate}("");  //.call is required to transfer funds to a smart contract. Transferring funds back to a smart contract costs more than the maximum gas cost of 2300 for .transfer. https://stackoverflow.com/questions/66112452/how-to-transfer-fund-from-msg-senderamount-to-recipient-address-without-using#:~:text=These%20examples%20work%20on%20Solidity%200.8.%20Some%20previous,uint256%20bonus%20%3D%20calculateBonus%20%28%29%3B%20payable%20%28msg.sender%29.transfer%20%28bonus%29%3B
-        require(success, "Reimbursement failed.");
+        // reimburse the user who invoked this entire transaction
+        payable(tx.origin).transfer(compensateWei);
+
+        // 5. Release the entrance lock
+        m_entranceLock = false;
+
+        // 4. emit the event for off-chain subscribers
+        emit NotifySubscribers(data);
     }
 
+    /**
+     * Make deposit to a subscriber's balance
+     * @param subscriber The address of the subscriber
+     */
+    function subscriberAddBalance(address subscriber) external payable {
+        // 1. check that the subscriber has been added
+        require(
+            m_subscriberMap[subscriber].init,
+            "Subscriber is not found"
+        );
 
-    function getContractBalance() external view returns (uint256) {
-        return address(this).balance;
+        // 2. add the balance to the subscriber
+        m_subscriberMap[subscriber].balanceWei += msg.value;
     }
 
+    /**
+     * Check the balance of a subscriber
+     * @param subscriber The address of the subscriber
+     * @return uint256 The balance of the subscriber
+     */
+    function subscriberCheckBalance(address subscriber)
+        external
+        view
+        returns(uint256)
+    {
+        // 1. check that the subscriber has been added
+        require(
+            m_subscriberMap[subscriber].init,
+            "Subscriber is not found"
+        );
 
-    function subscriberAddBalance(address subscriber, uint amount) payable public {
-        require (subscribers[subscriber].init, "You have not subscribed to the system"); // Require subscriber to be part of the system
-        require (amount == msg.value, "Amount specified does not equal amount sent"); // make sure amount is the same as the message amount
-        require (msg.sender == subscribers[subscriber].addr, "You did not initialize subscriber");
-        subscribers[subscriber].balance += msg.value;
+        // 2. return the balance of the subscriber
+        return m_subscriberMap[subscriber].balanceWei;
     }
 
-    // Subscriber can check its balance but not the balance of others
-    function checkSubscriberBalance(address subscriber) public view returns(uint) {
-        require(subscribers[subscriber].init, "Subscriber not subscribed");
-        return subscribers[subscriber].balance;
+    /**
+     * This function allows the owner to update the incentive value after
+     * the contract has been deployed
+     * @param incentive The new incentive value
+     * @dev The owner contract must call this function directly
+     */
+    function updateIncentive(uint256 incentive) external {
+        // 1. check that the caller is the owner
+        require(
+            msg.sender == m_owner,
+            "Only the owner can update incentive"
+        );
+
+        // 2. update the incentive
+        m_incentiveWei = incentive;
     }
 
+    /**
+     * Add a publisher to share this event manager
+     * @param publisherAddr The address of the publisher
+     * @dev The owner contract must call this function directly
+     */
+    function addPublisher(address publisherAddr) external {
+        // 1. check that the caller is the owner
+        require(
+            msg.sender == m_owner,
+            "Only the owner can add publishers"
+        );
 
-    //since incentive is statically set, function to enable smart contract owner to update the incentive value
-    function updateIncentive(uint new_incentive) public {
-        require(msg.sender == owner);
-        incentive = new_incentive;
+        // Don't need to check if the publisher is already added
+        // since we are just flipping a boolean
+
+        // 2. add the publisher to the map of publishers
+        m_publisherMap[publisherAddr] = true;
     }
 
-    function viewSubscriberList() public view returns(address[] memory){
-        return subscriber_addrs;
+    /**
+     * Set the per subscriber minimum gas limit on the notifying call
+     */
+    function setPerSubscriberLimitGas(uint256 limitGas) external {
+        // 1. check that the caller is the owner
+        require(
+            msg.sender == m_owner,
+            "Only the owner can set the limit"
+        );
+
+        // 2. set the limit
+        m_perSubLimitGas = limitGas;
     }
 
 }

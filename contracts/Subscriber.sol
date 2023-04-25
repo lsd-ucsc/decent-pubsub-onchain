@@ -3,7 +3,8 @@ pragma solidity ^0.8.17;
 
 
 interface Interface_PubSubService {
-    function subscribe(address publisher_addr, uint256 deposit, address subscribeContractAddr) external payable;
+    function subscribe(address publisher_addr) external payable;
+//    function subscribe(address publisher_addr) external payable;
 }
 
 // Enum interface?
@@ -14,7 +15,8 @@ contract Subscriber {
 
     constructor(address publisher_addr, address pubsub_addr, uint256 deposit) payable {
         require(deposit == msg.value, "Deposit must equal sent amount");
-        Interface_PubSubService(pubsub_addr).subscribe{value: msg.value}(publisher_addr, msg.value, address(this));
+//        Interface_PubSubService(pubsub_addr).subscribe{value: msg.value}(publisher_addr, msg.value, address(this));
+        Interface_PubSubService(pubsub_addr).subscribe{value: msg.value}(publisher_addr);
     }
 
     address[] blackList;
@@ -31,7 +33,7 @@ contract Subscriber {
         remove(blackList, user);
     }
 
-    function notify(bytes memory data) public {
+    function onNotify(bytes memory data) public {
         (Action action, address user) = abi.decode(data, (Action, address));
         if (action == Action.ADD_TO_BLACKLIST) {
             addedUserToBlackList(user);
