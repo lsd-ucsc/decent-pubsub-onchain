@@ -413,6 +413,14 @@ def SetupSendingAccount(
 		w3.eth.default_account = w3.eth.accounts[0]
 		privKey = None
 
+	if privKey is not None:
+		# ensure that the private key matches the address
+		privAcc = w3.eth.account.from_key(privKey)
+		if privAcc.address != w3.eth.default_account:
+			raise ValueError(
+				'The private key does not match the address'
+			)
+
 	logger.info(
 		'The address of the account to be used: {}'.format(
 			w3.eth.default_account
