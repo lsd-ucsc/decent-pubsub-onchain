@@ -11,9 +11,19 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-22.04 ]
+
+        python-version: [ 3.11 ]
         node-version: [ 18.16.0 ]
+
         solc-version: [ 0.8.19 ]
+        ganache-version: [ 7.8.0 ]
+
+        numpy-version: [ 1.24.3 ]
+        matplotlib-version: [ 3.7.1 ]
+        web3-version: [ 6.2.0 ]
+
         opt-flags: [ "--optimize --optimize-runs 200" ]
+
     name: A job to create a release
     steps:
     - name: Checkout
@@ -24,9 +34,21 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    - name: Installing solc compiler
+    - name: Installing Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Installing NPM packages
       run: |
         npm install -g solc@${{ matrix.solc-version }}
+        npm install -g ganache@${{ matrix.ganache-version }}
+
+    - name: Installing Python packages
+      run: |
+        python3 -m pip install web3==${{ matrix.web3-version }}
+        python3 -m pip install numpy==${{ matrix.numpy-version }}
+        python3 -m pip install matplotlib==${{ matrix.matplotlib-version }}
 
     - name: Compiling contracts for PubSub/EventManager.sol
       run: |
@@ -67,6 +89,32 @@ jobs:
         sha256sum ./build/HelloWorldSubscriber.bin >> ./build/checksums.txt
         sha256sum ./build/HelloWorldSubscriber.abi >> ./build/checksums.txt
 
+    - name: Prepare binaries for gas cost evaluation
+      run: |
+        mkdir -p ./build/PubSub
+        cp ./build/EventManager.bin  ./build/PubSub/EventManager.bin
+        cp ./build/EventManager.abi  ./build/PubSub/EventManager.abi
+        cp ./build/PubSubService.bin ./build/PubSub/PubSubService.bin
+        cp ./build/PubSubService.abi ./build/PubSub/PubSubService.abi
+        mkdir -p ./build/tests
+        cp ./build/HelloWorldPublisher.bin  ./build/tests/HelloWorldPublisher.bin
+        cp ./build/HelloWorldPublisher.abi  ./build/tests/HelloWorldPublisher.abi
+        cp ./build/HelloWorldSubscriber.bin ./build/tests/HelloWorldSubscriber.bin
+        cp ./build/HelloWorldSubscriber.abi ./build/tests/HelloWorldSubscriber.abi
+
+    - name: Run publish gas cost evaluation
+      run: |
+        python3 ./tests/MultiSubsGasCostEval.py
+
+    - name: Run subscribe gas cost evaluation
+      run: |
+        python3 ./tests/MultiPubsGasCostEval.py
+
+    - name: Convert figures into inlined SVG
+      run: |
+        python3 ./utils/SvgToInlineMd.py --input ./build/publish_gas_cost.svg   --output ./build/publish_gas_cost.md   --title "Gas Cost of Publishing Events"
+        python3 ./utils/SvgToInlineMd.py --input ./build/subscribe_gas_cost.svg --output ./build/subscribe_gas_cost.md --title "Gas cost of Subscribing to Publishers"
+
     - name: Generate release note
       run: |
         echo "# Release note"                   >> ./build/release_note.md
@@ -86,6 +134,12 @@ jobs:
         echo "\`\`\`"             >> ./build/release_note.md
         cat ./build/checksums.txt >> ./build/release_note.md
         echo "\`\`\`"             >> ./build/release_note.md
+        echo "" >> ./build/release_note.md
+        echo "## Gas Cost Evaluations" >> ./build/release_note.md
+        echo "### Gas Cost of Publishing Events"         >> ./build/release_note.md
+        cat ./build/publish_gas_cost.md                  >> ./build/release_note.md
+        echo "### Gas cost of Subscribing to Publishers" >> ./build/release_note.md
+        cat ./build/subscribe_gas_cost.md                >> ./build/release_note.md
         echo "" >> ./build/release_note.md
 
     - name: Release
