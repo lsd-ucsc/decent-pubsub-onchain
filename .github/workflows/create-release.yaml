@@ -21,6 +21,7 @@ jobs:
         numpy-version: [ 1.24.3 ]
         matplotlib-version: [ 3.7.1 ]
         web3-version: [ 6.2.0 ]
+        requests-version: [ 2.28.2 ]
 
         opt-flags: [ "--optimize --optimize-runs 200" ]
 
@@ -49,6 +50,7 @@ jobs:
         python3 -m pip install web3==${{ matrix.web3-version }}
         python3 -m pip install numpy==${{ matrix.numpy-version }}
         python3 -m pip install matplotlib==${{ matrix.matplotlib-version }}
+        python3 -m pip install requests==${{ matrix.requests-version }}
 
     - name: Compiling contracts for PubSub/EventManager.sol
       run: |
@@ -110,6 +112,13 @@ jobs:
       run: |
         python3 ./tests/MultiPubsGasCostEval.py
 
+    - name: Store evaluation figures to assets branch
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python3 ./utils/GitHubCreateFile.py --path "assets/${{ github.ref_name }}-publish_gas_cost.svg"   --commit-msg "Uploaded file assets/${{ github.ref_name }}-publish_gas_cost.svg"   --file "${{ github.workspace }}/build/publish_gas_cost.svg"   --branch assets-gas-eval
+        python3 ./utils/GitHubCreateFile.py --path "assets/${{ github.ref_name }}-subscribe_gas_cost.svg" --commit-msg "Uploaded file assets/${{ github.ref_name }}-subscribe_gas_cost.svg" --file "${{ github.workspace }}/build/subscribe_gas_cost.svg" --branch assets-gas-eval
+
     - name: Generate release note
       run: |
         echo "# Release note"                   >> ./build/release_note.md
@@ -133,13 +142,17 @@ jobs:
         echo "## Gas Cost Evaluations" >> ./build/release_note.md
         echo "### Gas Cost of Publishing Events"         >> ./build/release_note.md
         echo ""                                          >> ./build/release_note.md
-        echo '!'"[publish_gas_cost](/../../releases/download/${{  github.ref_name }}/publish_gas_cost.svg)"     >> ./build/release_note.md
+        echo '!'"[publish_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-publish_gas_cost.svg)"     >> ./build/release_note.md
         echo ""                                          >> ./build/release_note.md
         echo "### Gas cost of Subscribing to Publishers" >> ./build/release_note.md
         echo ""                                          >> ./build/release_note.md
-        echo '!'"[subscribe_gas_cost](/../../releases/download/${{  github.ref_name }}/subscribe_gas_cost.svg)" >> ./build/release_note.md
+        echo '!'"[subscribe_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-subscribe_gas_cost.svg)" >> ./build/release_note.md
         echo ""                                          >> ./build/release_note.md
         echo "" >> ./build/release_note.md
+
+    - name: Echo release note
+      run: |
+        cat ${{ github.workspace }}/build/release_note.md
 
     - name: Release
       uses: softprops/action-gh-release@v1
