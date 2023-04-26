@@ -110,11 +110,6 @@ jobs:
       run: |
         python3 ./tests/MultiPubsGasCostEval.py
 
-    - name: Convert figures into inlined SVG
-      run: |
-        python3 ./utils/SvgToInlineMd.py --input ./build/publish_gas_cost.svg   --output ./build/publish_gas_cost.md   --title "Gas Cost of Publishing Events"
-        python3 ./utils/SvgToInlineMd.py --input ./build/subscribe_gas_cost.svg --output ./build/subscribe_gas_cost.md --title "Gas cost of Subscribing to Publishers"
-
     - name: Generate release note
       run: |
         echo "# Release note"                   >> ./build/release_note.md
@@ -137,9 +132,13 @@ jobs:
         echo "" >> ./build/release_note.md
         echo "## Gas Cost Evaluations" >> ./build/release_note.md
         echo "### Gas Cost of Publishing Events"         >> ./build/release_note.md
-        cat ./build/publish_gas_cost.md                  >> ./build/release_note.md
+        echo ""                                          >> ./build/release_note.md
+        echo '!'"[publish_gas_cost](/../../releases/download/${{  github.ref_name }}/publish_gas_cost.svg)"     >> ./build/release_note.md
+        echo ""                                          >> ./build/release_note.md
         echo "### Gas cost of Subscribing to Publishers" >> ./build/release_note.md
-        cat ./build/subscribe_gas_cost.md                >> ./build/release_note.md
+        echo ""                                          >> ./build/release_note.md
+        echo '!'"[subscribe_gas_cost](/../../releases/download/${{  github.ref_name }}/subscribe_gas_cost.svg)" >> ./build/release_note.md
+        echo ""                                          >> ./build/release_note.md
         echo "" >> ./build/release_note.md
 
     - name: Release
@@ -155,3 +154,5 @@ jobs:
           ${{ github.workspace }}/build/HelloWorldPublisher.abi
           ${{ github.workspace }}/build/HelloWorldSubscriber.bin
           ${{ github.workspace }}/build/HelloWorldSubscriber.abi
+          ${{ github.workspace }}/build/publish_gas_cost.svg
+          ${{ github.workspace }}/build/subscribe_gas_cost.svg
