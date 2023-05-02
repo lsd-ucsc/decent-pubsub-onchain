@@ -2,7 +2,6 @@
 pragma solidity >=0.4.17 <0.9.0;
 
 
-import {Interface_EventManager} from "../PubSub/Interface_EventManager.sol";
 import {Interface_PubSubService} from "../PubSub/Interface_PubSubService.sol";
 
 
@@ -27,14 +26,8 @@ contract HelloWorldSubscriber {
 
 		m_eventMgrAddr = Interface_PubSubService(
 			m_pubSubServiceAddr
-		).getEventManagerAddr(publisherAddr);
-
-		Interface_EventManager(
-			m_eventMgrAddr
-		).addSubscriber{
+		).subscribe{
 			value: msg.value
-		}(
-			address(this)
-		);
+		}(publisherAddr);
 	}
 }
