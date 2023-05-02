@@ -8,15 +8,13 @@
 ###
 
 
+import json
 import os
 import random
 import signal
 import subprocess
 import sys
 import time
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 from web3 import Web3
 from typing import List, Tuple
@@ -256,43 +254,6 @@ def RunTests() -> List[Tuple[int, int]]:
 	return subscribeCost
 
 
-def DrawGraph(
-	dest: os.PathLike,
-	data: List[Tuple[int, int]],
-	scaleBy: int,
-	title: str,
-	xlabel: str = 'Number of subscribers',
-	ylabel: str = 'Gas cost',
-) -> None:
-
-	scale = np.power(10, scaleBy)
-	axes = plt.subplot()
-	axes.plot(
-		np.arange(1, len(data) + 1),
-		np.array([ cost for _, cost in data ]) / scale,
-	)
-
-	# set y-axis limits
-	dataAvg = sum([ cost for _, cost in data ])
-	dataAvg = dataAvg / len(data)
-	ymax = (dataAvg + (dataAvg * 0.0001)) / scale
-	ymin = (dataAvg - (dataAvg * 0.0001)) / scale
-	axes.set_ylim([ymin, ymax])
-
-	# avoid scientific notation
-	current_values = axes.get_yticks()
-	axes.set_yticklabels(
-		['{:.04f}'.format(x) for x in current_values]
-	)
-
-	plt.xticks(np.arange(1, len(data) + 1))
-	plt.title(title)
-	plt.xlabel(xlabel)
-	plt.ylabel(ylabel + f' (1e{scaleBy})')
-	plt.savefig(dest + '.svg', format='svg')
-	plt.savefig(dest + '.pdf', format='pdf')
-
-
 def StopGanache(ganacheProc: subprocess.Popen) -> None:
 	print('Shutting down ganache (it may take ~15 seconds)...')
 	waitEnd = time.time() + 20
@@ -315,18 +276,22 @@ def main():
 	ganacheProc = StartGanache()
 
 	try:
-		subscribeCost = RunTests()
+		gasResults = []
 
-		print('Subscribe gas cost results:')
-		for cost in subscribeCost:
-			print('{:03} publishers: {:010.2f} gas'.format(cost[0], cost[1]))
+		for _ in range(3):
+			subscribeCost = RunTests()
 
-		DrawGraph(
-			dest=os.path.join(BUILD_DIR_PATH, 'subscribe_gas_cost'),
-			data=subscribeCost,
-			scaleBy=5,
-			title='Gas cost of subscribing',
-		)
+			print('Subscribe gas cost results:')
+			for cost in subscribeCost:
+				print('{:03} publishers: {:010.2f} gas'.format(cost[0], cost[1]))
+
+			gasResults.append(subscribeCost)
+
+		# save results
+		outputFile = os.path.join(BUILD_DIR_PATH, 'subscribe_gas_cost.json')
+		with open(outputFile, 'w') as f:
+			json.dump(gasResults, f, indent='\t')
+
 	finally:
 		# finish and exit
 		StopGanache(ganacheProc)
