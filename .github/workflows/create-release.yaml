@@ -2,8 +2,11 @@ name: Create release
 
 on:
   push:
+    branches: [ main ]
     tags:
       - "v*.*.*"
+  pull_request:
+    branches: [ main ]
 
 jobs:
   create_release:
@@ -17,13 +20,6 @@ jobs:
 
         solc-version: [ 0.8.19 ]
         ganache-version: [ 7.8.0 ]
-
-        numpy-version: [ 1.24.3 ]
-        matplotlib-version: [ 3.7.1 ]
-        plotly-version: [ 5.14.1 ]
-        kaleido-version: [ 0.2.1 ]
-        web3-version: [ 6.2.0 ]
-        requests-version: [ 2.28.2 ]
 
         opt-flags: [ "--optimize --optimize-runs 200" ]
 
@@ -49,12 +45,7 @@ jobs:
 
     - name: Installing Python packages
       run: |
-        python3 -m pip install web3==${{ matrix.web3-version }}
-        python3 -m pip install numpy==${{ matrix.numpy-version }}
-        python3 -m pip install matplotlib==${{ matrix.matplotlib-version }}
-        python3 -m pip install plotly==${{ matrix.plotly-version }}
-        python3 -m pip install kaleido==${{ matrix.kaleido-version }}
-        python3 -m pip install requests==${{ matrix.requests-version }}
+        python3 -m pip install --requirement ${{ github.workspace }}/utils/gas_cost_eval_requirements.txt
 
     - name: Compiling contracts for PubSub/EventManager.sol
       run: |
@@ -110,18 +101,15 @@ jobs:
 
     - name: Run publish gas cost evaluation
       run: |
-        python3 ./tests/GasCostEvalMultiSubs.py
+        python3 ${{ github.workspace }}/tests/GasCostEvalMultiSubs.py
 
     - name: Run subscribe gas cost evaluation
       run: |
-        python3 ./tests/GasCostEvalMultiPubs.py
+        python3 ${{ github.workspace }}/tests/GasCostEvalMultiPubs.py
 
-    - name: Store evaluation figures to assets branch
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Plot gas cost evaluation result figures
       run: |
-        python3 ./utils/GitHubCreateFile.py --path "assets/${{ github.ref_name }}-publish_gas_cost.svg"   --commit-msg "Uploaded file assets/${{ github.ref_name }}-publish_gas_cost.svg"   --file "${{ github.workspace }}/build/publish_gas_cost.svg"   --branch assets-gas-eval
-        python3 ./utils/GitHubCreateFile.py --path "assets/${{ github.ref_name }}-subscribe_gas_cost.svg" --commit-msg "Uploaded file assets/${{ github.ref_name }}-subscribe_gas_cost.svg" --file "${{ github.workspace }}/build/subscribe_gas_cost.svg" --branch assets-gas-eval
+        python3 ${{ github.workspace }}/tests/GasCostEvalPlot.py
 
     - name: Generate release note
       run: |
@@ -158,8 +146,51 @@ jobs:
       run: |
         cat ${{ github.workspace }}/build/release_note.md
 
+    - name: Release for non-tagged commit
+      uses: actions/upload-artifact@v3
+      if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      with:
+        name: non_tagged_release_${{ github.ref_name }}
+        path: |
+          ${{ github.workspace }}/build/release_note.md
+          ${{ github.workspace }}/build/EventManager.bin
+          ${{ github.workspace }}/build/EventManager.abi
+          ${{ github.workspace }}/build/PubSubService.bin
+          ${{ github.workspace }}/build/PubSubService.abi
+          ${{ github.workspace }}/build/HelloWorldPublisher.bin
+          ${{ github.workspace }}/build/HelloWorldPublisher.abi
+          ${{ github.workspace }}/build/HelloWorldSubscriber.bin
+          ${{ github.workspace }}/build/HelloWorldSubscriber.abi
+          ${{ github.workspace }}/build/publish_gas_cost.svg
+          ${{ github.workspace }}/build/publish_gas_cost.json
+          ${{ github.workspace }}/build/subscribe_gas_cost.svg
+          ${{ github.workspace }}/build/subscribe_gas_cost.json
+          ${{ github.workspace }}/build/gas_cost.svg
+
+    - name: Store evaluation figures to assets branch
+      if: startsWith(github.ref, 'refs/tags/')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python3 ${{ github.workspace }}/utils/GitHubCreateFile.py \
+            --branch assets-gas-eval \
+            --commit-msg "Uploaded file assets/${{ github.ref_name }}-publish_gas_cost.svg" \
+            --path "assets/${{ github.ref_name }}-publish_gas_cost.svg" \
+            --file "${{ github.workspace }}/build/publish_gas_cost.svg"
+        python3 ${{ github.workspace }}/utils/GitHubCreateFile.py \
+            --branch assets-gas-eval \
+            --path "assets/${{ github.ref_name }}-subscribe_gas_cost.svg" \
+            --commit-msg "Uploaded file assets/${{ github.ref_name }}-subscribe_gas_cost.svg" \
+            --file "${{ github.workspace }}/build/subscribe_gas_cost.svg"
+        python3 ${{ github.workspace }}/utils/GitHubCreateFile.py \
+            --branch assets-gas-eval \
+            --path "assets/${{ github.ref_name }}-gas_cost.svg" \
+            --commit-msg "Uploaded file assets/${{ github.ref_name }}-gas_cost.svg" \
+            --file "${{ github.workspace }}/build/gas_cost.svg"
+
     - name: Release
       uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
       with:
         body_path: ${{ github.workspace }}/build/release_note.md
         files: |
@@ -172,4 +203,6 @@ jobs:
           ${{ github.workspace }}/build/HelloWorldSubscriber.bin
           ${{ github.workspace }}/build/HelloWorldSubscriber.abi
           ${{ github.workspace }}/build/publish_gas_cost.svg
+          ${{ github.workspace }}/build/publish_gas_cost.json
           ${{ github.workspace }}/build/subscribe_gas_cost.svg
+          ${{ github.workspace }}/build/subscribe_gas_cost.json
