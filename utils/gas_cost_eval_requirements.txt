@@ -1,0 +1,7 @@
+web3==6.2.0
+requests==2.28.2
+numpy==1.24.3
+matplotlib==3.7.1
+plotly==5.14.1
+kaleido==0.2.1
+pandas==2.0.1

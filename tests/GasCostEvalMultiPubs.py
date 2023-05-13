@@ -8,14 +8,13 @@
 ###
 
 
+import json
 import os
+import random
 import signal
 import subprocess
 import sys
 import time
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 from web3 import Web3
 from typing import List, Tuple
@@ -28,6 +27,7 @@ PROJECT_CONFIG_PATH = os.path.join(UTILS_DIR_PATH, 'project_conf.json')
 CHECKSUM_KEYS_PATH  = os.path.join(UTILS_DIR_PATH, 'ganache_keys_checksum.json')
 GANACHE_KEYS_PATH   = os.path.join(UTILS_DIR_PATH, 'ganache_keys.json')
 GANACHE_PORT        = 7545
+NUM_OF_ACCOUNTS     = 100
 
 sys.path.append(UTILS_DIR_PATH)
 import EthContractHelper
@@ -38,13 +38,26 @@ def StartGanache() -> subprocess.Popen:
 		'ganache-cli',
 		'-p', str(GANACHE_PORT),
 		'-d',
-		'-a', '20',
+		'-a', str(NUM_OF_ACCOUNTS),
 		'--network-id', '1337',
 		'--wallet.accountKeysPath', GANACHE_KEYS_PATH,
 	]
 	proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 	return proc
+
+
+def SelectRandomAccount(
+	w3: Web3,
+	numAccounts: int = NUM_OF_ACCOUNTS
+) -> str:
+	accountIdx = random.randint(0, numAccounts - 1)
+	# accountIdx = 0
+	return EthContractHelper.SetupSendingAccount(
+		w3=w3,
+		account=accountIdx,
+		keyJson=CHECKSUM_KEYS_PATH
+	)
 
 
 def RunTests() -> List[Tuple[int, int]]:
@@ -59,11 +72,7 @@ def RunTests() -> List[Tuple[int, int]]:
 	print('Connected to ganache')
 
 	# setup account
-	privKey = EthContractHelper.SetupSendingAccount(
-		w3=w3,
-		account=0, # use account 0
-		keyJson=CHECKSUM_KEYS_PATH
-	)
+	privKey = SelectRandomAccount(w3)
 
 
 	subscribeCost = []
@@ -105,9 +114,13 @@ def RunTests() -> List[Tuple[int, int]]:
 		)
 
 		publishers = []
+		print('Deploying {} publishers...'.format(numPublishers))
 		for pubIndex in range(0, numPublishers):
+			# choose a random account to deploy from
+			privKey = SelectRandomAccount(w3)
+
 			# deploy Publisher contract
-			print('Deploying publisher contract...')
+			# print('Deploying publisher contract...')
 			publisherContract = EthContractHelper.LoadContract(
 				w3=w3,
 				projConf=PROJECT_CONFIG_PATH,
@@ -125,7 +138,7 @@ def RunTests() -> List[Tuple[int, int]]:
 				confirmPrompt=False # don't prompt for confirmation
 			)
 			publisherAddr = publisherReceipt.contractAddress
-			print('Publisher contract deployed at {}'.format(publisherAddr))
+			# print('Publisher contract deployed at {}'.format(publisherAddr))
 
 			# load deployed Publisher contract
 			publisherContract = EthContractHelper.LoadContract(
@@ -137,7 +150,7 @@ def RunTests() -> List[Tuple[int, int]]:
 			)
 
 			# register publisher
-			print('Registering publisher...')
+			# print('Registering publisher...')
 			EthContractHelper.CallContractFunc(
 				w3=w3,
 				contract=publisherContract,
@@ -155,8 +168,11 @@ def RunTests() -> List[Tuple[int, int]]:
 		for publisherContract in publishers:
 			publisherAddr = publisherContract.address
 
+			# choose a random account to deploy from
+			privKey = SelectRandomAccount(w3)
+
 			# deploy Subscriber contract
-			print('Deploying subscriber contract...')
+			# print('Deploying subscriber contract...')
 			subscriberContract = EthContractHelper.LoadContract(
 				w3=w3,
 				projConf=PROJECT_CONFIG_PATH,
@@ -185,7 +201,7 @@ def RunTests() -> List[Tuple[int, int]]:
 			)
 
 			# subscribe
-			print('Subscribing...')
+			# print('Subscribing...')
 			subTxReceipt = EthContractHelper.CallContractFunc(
 				w3=w3,
 				contract=subscriberContract,
@@ -196,6 +212,31 @@ def RunTests() -> List[Tuple[int, int]]:
 				value=10000000000000000, # 0.01 ether
 				confirmPrompt=False # don't prompt for confirmation
 			)
+
+			# check if the subscriber was successfully subscribed
+			subscribedEvMgrAddr = EthContractHelper.CallContractFunc(
+				w3=w3,
+				contract=subscriberContract,
+				funcName='m_eventMgrAddr',
+				arguments=[ ],
+				privKey=None,
+				gas=None,
+				value=0,
+				confirmPrompt=False # don't prompt for confirmation
+			)
+			registeredEvMgrAddr = EthContractHelper.CallContractFunc(
+				w3=w3,
+				contract=publisherContract,
+				funcName='m_eventMgrAddr',
+				arguments=[ ],
+				privKey=None,
+				gas=None,
+				value=0,
+				confirmPrompt=False # don't prompt for confirmation
+			)
+			if subscribedEvMgrAddr != registeredEvMgrAddr:
+				raise RuntimeError('Subscriber was not subscribed to publisher')
+
 			print('Subscriber@{} subscribed to publisher@{}'.format(
 				subscriberAddr,
 				publisherAddr
@@ -211,42 +252,6 @@ def RunTests() -> List[Tuple[int, int]]:
 		))
 
 	return subscribeCost
-
-
-def DrawGraph(
-	dest: os.PathLike,
-	data: List[Tuple[int, int]],
-	scaleBy: int,
-	title: str,
-	xlabel: str = 'Number of subscribers',
-	ylabel: str = 'Gas cost',
-) -> None:
-
-	scale = np.power(10, scaleBy)
-	axes = plt.subplot()
-	axes.plot(
-		np.arange(1, len(data) + 1),
-		np.array([ cost for _, cost in data ]) / scale,
-	)
-
-	# set y-axis limits
-	dataAvg = sum([ cost for _, cost in data ])
-	dataAvg = dataAvg / len(data)
-	ymax = (dataAvg + (dataAvg * 0.0001)) / scale
-	ymin = (dataAvg - (dataAvg * 0.0001)) / scale
-	axes.set_ylim([ymin, ymax])
-
-	# avoid scientific notation
-	current_values = axes.get_yticks()
-	axes.set_yticklabels(
-		['{:.04f}'.format(x) for x in current_values]
-	)
-
-	plt.xticks(np.arange(1, len(data) + 1))
-	plt.title(title)
-	plt.xlabel(xlabel)
-	plt.ylabel(ylabel + f' (1e{scaleBy})')
-	plt.savefig(dest)
 
 
 def StopGanache(ganacheProc: subprocess.Popen) -> None:
@@ -271,18 +276,22 @@ def main():
 	ganacheProc = StartGanache()
 
 	try:
-		subscribeCost = RunTests()
+		gasResults = []
 
-		print('Subscribe gas cost results:')
-		for cost in subscribeCost:
-			print('{:03} publishers: {:010.2f} gas'.format(cost[0], cost[1]))
+		for _ in range(3):
+			subscribeCost = RunTests()
 
-		DrawGraph(
-			dest=os.path.join(BUILD_DIR_PATH, 'subscribe_gas_cost.svg'),
-			data=subscribeCost,
-			scaleBy=5,
-			title='Gas cost of subscribing',
-		)
+			print('Subscribe gas cost results:')
+			for cost in subscribeCost:
+				print('{:03} publishers: {:010.2f} gas'.format(cost[0], cost[1]))
+
+			gasResults.append(subscribeCost)
+
+		# save results
+		outputFile = os.path.join(BUILD_DIR_PATH, 'subscribe_gas_cost.json')
+		with open(outputFile, 'w') as f:
+			json.dump(gasResults, f, indent='\t')
+
 	finally:
 		# finish and exit
 		StopGanache(ganacheProc)
