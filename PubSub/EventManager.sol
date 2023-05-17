@@ -75,29 +75,11 @@ contract EventManager {
         });
     }
 
-    /**
-     * Notify all subscribers
-     * @param data The data to send to the subscribers
-     * @dev The immediate caller must be a publisher
-     */
-    function notifySubscribers(bytes memory data) external {
-        // 1. Make sure the entrance lock is free
-        require(
-            !m_entranceLock,
-            "Entrance lock is engaged"
-        );
-        m_entranceLock = true;
-
-        // 2. Make sure the caller is a publisher
-        require(
-            m_publisherMap[msg.sender],
-            "Only registered publisher can notify"
-        );
-
-        // 3. Get gas price (Wei per gas unit) that we want to reimburse
+    function notifyOnChainSubscribers(bytes memory data) private {
+        // 1. Get gas price (Wei per gas unit) that we want to reimburse
         uint256 gasPriceWei = tx.gasprice;
 
-        // 4. maintain running track of how much to compensate tx.origin
+        // 2. maintain running track of how much to compensate tx.origin
         uint256 compensateWei = 0;
 
         uint256 numSubscribers   = m_subscriberAddrs.length;
@@ -107,7 +89,7 @@ contract EventManager {
         uint256 costWei   = 0;
         uint256 limitGas  = 0;
 
-        // 5. Make sure the specified gas limit is enough for all subscribers's
+        // 3. Make sure the specified gas limit is enough for all subscribers's
         //    max gas limit
         require(
             gasleft() >= ((m_perSubLimitGas * numSubscribers) +
@@ -116,7 +98,7 @@ contract EventManager {
         );
         uint fairLimitGas = (gasleft() - FINISHING_COST_GAS) / numSubscribers;
 
-        // 6. Notify all subscribers and reimburse the sender for the gas used
+        // 4. Notify all subscribers and reimburse the sender for the gas used
         for (uint256 i = 0; i < numSubscribers; i++) {
             address subscriberAddr = m_subscriberAddrs[i];
             // get a reference to the mapped subscriber
@@ -155,11 +137,36 @@ contract EventManager {
 
         // reimburse the user who invoked this entire transaction
         payable(tx.origin).transfer(compensateWei);
+    }
 
-        // 5. Release the entrance lock
+    /**
+     * Notify all subscribers
+     * @param data The data to send to the subscribers
+     * @dev The immediate caller must be a publisher
+     */
+    function notifySubscribers(bytes memory data) external {
+        // 1. Make sure the entrance lock is free
+        require(
+            !m_entranceLock,
+            "Entrance lock is engaged"
+        );
+        m_entranceLock = true;
+
+        // 2. Make sure the caller is a publisher
+        require(
+            m_publisherMap[msg.sender],
+            "Only registered publisher can notify"
+        );
+
+        // 3. notify all on-chain subscribers if there is any
+        if (m_subscriberAddrs.length > 0) {
+            notifyOnChainSubscribers(data);
+        }
+
+        // 4. Release the entrance lock
         m_entranceLock = false;
 
-        // 4. emit the event for off-chain subscribers
+        // 5. emit the event for off-chain subscribers
         emit NotifySubscribers(data);
     }
 
