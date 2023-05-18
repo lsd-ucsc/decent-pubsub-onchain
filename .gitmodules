@@ -1,0 +1,4 @@
+[submodule "utils/PyEthHelper"]
+	path = utils/PyEthHelper
+	url = https://github.com/lsd-ucsc/PyEthHelper.git
+	branch = main

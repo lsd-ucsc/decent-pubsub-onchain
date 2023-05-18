@@ -23,14 +23,18 @@ from typing import List, Tuple
 BASE_DIR_PATH       = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD_DIR_PATH      = os.path.join(BASE_DIR_PATH, 'build')
 UTILS_DIR_PATH      = os.path.join(BASE_DIR_PATH, 'utils')
+PYHELPER_DIR        = os.path.join(UTILS_DIR_PATH, 'PyEthHelper')
 PROJECT_CONFIG_PATH = os.path.join(UTILS_DIR_PATH, 'project_conf.json')
-CHECKSUM_KEYS_PATH  = os.path.join(UTILS_DIR_PATH, 'ganache_keys_checksum.json')
-GANACHE_KEYS_PATH   = os.path.join(UTILS_DIR_PATH, 'ganache_keys.json')
+CHECKSUM_KEYS_PATH  = os.path.join(BUILD_DIR_PATH, 'ganache_keys_checksum.json')
+GANACHE_KEYS_PATH   = os.path.join(BUILD_DIR_PATH, 'ganache_keys.json')
 GANACHE_PORT        = 7545
 NUM_OF_ACCOUNTS     = 100
+GANACHE_NET_ID      = 1337
 
-sys.path.append(UTILS_DIR_PATH)
-import EthContractHelper
+
+sys.path.append(PYHELPER_DIR)
+from PyEthHelper import EthContractHelper
+from PyEthHelper import GanacheAccounts
 
 
 def StartGanache() -> subprocess.Popen:
@@ -39,8 +43,9 @@ def StartGanache() -> subprocess.Popen:
 		'-p', str(GANACHE_PORT),
 		'-d',
 		'-a', str(NUM_OF_ACCOUNTS),
-		'--network-id', '1337',
-		'--wallet.accountKeysPath', GANACHE_KEYS_PATH,
+		'--network-id', str(GANACHE_NET_ID),
+		'--chain.hardfork', 'shanghai',
+		'--wallet.accountKeysPath', str(GANACHE_KEYS_PATH),
 	]
 	proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -70,6 +75,12 @@ def RunTests() -> List[Tuple[int, int]]:
 		print('Attempting to connect to ganache...')
 		time.sleep(1)
 	print('Connected to ganache')
+
+	# checksum keys
+	GanacheAccounts.ChecksumGanacheKeysFile(
+		CHECKSUM_KEYS_PATH,
+		GANACHE_KEYS_PATH
+	)
 
 	# setup account
 	privKey = SelectRandomAccount(w3)

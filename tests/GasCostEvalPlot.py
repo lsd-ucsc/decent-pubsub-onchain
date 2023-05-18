@@ -21,74 +21,11 @@ BASE_DIR_PATH       = os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 BUILD_DIR_PATH      = os.path.join(BASE_DIR_PATH, 'build')
 
 
-# def DrawGraph(
-# 	dest: os.PathLike,
-# 	data: List[Tuple[int, int]],
-# 	scaleBy: int,
-# 	title: str,
-# 	xlabel: str = 'Number of subscribers',
-# 	ylabel: str = 'Gas cost',
-# ) -> None:
-
-# 	scale = np.power(10, scaleBy)
-# 	plt.plot(
-# 		np.arange(1, len(data) + 1),
-# 		np.array([ cost for _, cost in data ]) / scale,
-# 	)
-# 	plt.xticks(np.arange(1, len(data) + 1))
-# 	plt.title(title)
-# 	plt.xlabel(xlabel)
-# 	plt.ylabel(ylabel + f' (1e{scaleBy})')
-# 	plt.savefig(dest + '.svg', format='svg')
-# 	plt.savefig(dest + '.pdf', format='pdf')
-
-# 	# clear plot
-# 	plt.clf()
-
-
-# def DrawGraph(
-# 	dest: os.PathLike,
-# 	data: List[Tuple[int, int]],
-# 	scaleBy: int,
-# 	title: str,
-# 	xlabel: str = 'Number of subscribers',
-# 	ylabel: str = 'Gas cost',
-# ) -> None:
-
-# 	scale = np.power(10, scaleBy)
-# 	axes = plt.subplot()
-# 	axes.plot(
-# 		np.arange(1, len(data) + 1),
-# 		np.array([ cost for _, cost in data ]) / scale,
-# 	)
-
-# 	# set y-axis limits
-# 	dataAvg = sum([ cost for _, cost in data ])
-# 	dataAvg = dataAvg / len(data)
-# 	ymax = (dataAvg + (dataAvg * 0.0001)) / scale
-# 	ymin = (dataAvg - (dataAvg * 0.0001)) / scale
-# 	axes.set_ylim([ymin, ymax])
-
-# 	# avoid scientific notation
-# 	current_values = axes.get_yticks()
-# 	axes.set_yticklabels(
-# 		['{:.04f}'.format(x) for x in current_values]
-# 	)
-
-# 	plt.xticks(np.arange(1, len(data) + 1))
-# 	plt.title(title)
-# 	plt.xlabel(xlabel)
-# 	plt.ylabel(ylabel + f' (1e{scaleBy})')
-# 	plt.savefig(dest + '.svg', format='svg')
-# 	plt.savefig(dest + '.pdf', format='pdf')
-
-# 	# clear plot
-# 	plt.clf()
-
 ErrorBarData = List[int]
 SingleData   = int
 DataPoint    = Tuple[int, Union[SingleData, ErrorBarData]]
 DataPoints   = List[DataPoint]
+
 
 # available markers: https://plotly.com/python/marker-style/
 # circle, square, diamond, cross, x, triangle, pentagon, hexagram, star, diamond, hourglass, bowtie, asterisk, hash, y
