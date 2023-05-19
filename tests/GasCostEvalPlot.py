@@ -118,6 +118,7 @@ def SaveFigure(
 	outName: str,
 ) -> None:
 	fig.write_image(outName + '.svg')
+	# fig.write_image(outName + '.png')
 
 	fig.write_image(outName + '.pdf')
 	# mitigation for issue https://github.com/plotly/plotly.py/issues/3469
@@ -181,6 +182,7 @@ def ReadResults(
 
 
 def main() -> None:
+	#===== Publish Gas Cost =====#
 	pubGasCostRes = ReadResults(
 		os.path.join(BUILD_DIR_PATH, 'publish_gas_cost.json')
 	)
@@ -194,6 +196,7 @@ def main() -> None:
 		outName=os.path.join(BUILD_DIR_PATH, 'publish_gas_cost'),
 	)
 
+	#===== Subscribe Gas Cost =====#
 	subGasCostRes = ReadResults(
 		os.path.join(BUILD_DIR_PATH, 'subscribe_gas_cost.json')
 	)
@@ -216,10 +219,34 @@ def main() -> None:
 		outName=os.path.join(BUILD_DIR_PATH, 'subscribe_gas_cost'),
 	)
 
+	#===== Register Gas Cost =====#
+	regGasCostRes = ReadResults(
+		os.path.join(BUILD_DIR_PATH, 'register_gas_cost.json')
+	)
+
+	fig3 = GenerateFigure(
+		inData=[ regGasCostRes ],
+		dataNames=[ 'Register Costs' ],
+		title='Register Gas Cost',
+		xLabel='Number of Publishers',
+		yLabel='Amount of Gas Units',
+	)
+	fig3YMax = max([ y[2] for _, y in regGasCostRes ])
+	fig3YMin = min([ y[0] for _, y in regGasCostRes ])
+	fig3YMid = (fig3YMax + fig3YMin) / 2
+	fig3YMax += fig3YMid * 0.00005
+	fig3YMin -= fig3YMid * 0.00005
+	fig3.update_yaxes(range=[fig3YMin, fig3YMax])
+	SaveFigure(
+		fig=fig3,
+		outName=os.path.join(BUILD_DIR_PATH, 'register_gas_cost'),
+	)
+
+	#===== Summary Graph =====#
 	PlotGraph(
-		inData=[ pubGasCostRes, subGasCostRes, ],
-		dataNames=[ 'Publish Costs', 'Subscribe Costs', ],
-		title='Publish & Subscribe Gas Cost',
+		inData=[ pubGasCostRes, subGasCostRes, regGasCostRes, ],
+		dataNames=[ 'Publish Costs', 'Subscribe Costs', 'Register Costs', ],
+		title='Pub-Sub Service Gas Costs',
 		xLabel='Number of Subscribers/Publishers',
 		yLabel='Amount of Gas Units',
 		outName=os.path.join(BUILD_DIR_PATH, 'gas_cost'),

@@ -89,28 +89,30 @@ jobs:
         ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/tests/HelloWorldPublisher.sol
 
     - name: Calculating checksums of the binary
+      working-directory: ${{ github.workspace }}/build
       run: |
-        sha256sum ./build/EventManager.bin  >> ./build/checksums.txt
-        sha256sum ./build/EventManager.abi  >> ./build/checksums.txt
-        sha256sum ./build/PubSubService.bin >> ./build/checksums.txt
-        sha256sum ./build/PubSubService.abi >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldPublisher.bin  >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldPublisher.abi  >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldSubscriber.bin >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldSubscriber.abi >> ./build/checksums.txt
+        sha256sum EventManager.bin         >> checksums.txt
+        sha256sum EventManager.abi         >> checksums.txt
+        sha256sum PubSubService.bin        >> checksums.txt
+        sha256sum PubSubService.abi        >> checksums.txt
+        sha256sum HelloWorldPublisher.bin  >> checksums.txt
+        sha256sum HelloWorldPublisher.abi  >> checksums.txt
+        sha256sum HelloWorldSubscriber.bin >> checksums.txt
+        sha256sum HelloWorldSubscriber.abi >> checksums.txt
 
     - name: Prepare binaries for gas cost evaluation
+      working-directory: ${{ github.workspace }}/build
       run: |
-        mkdir -p ./build/PubSub
-        cp ./build/EventManager.bin  ./build/PubSub/EventManager.bin
-        cp ./build/EventManager.abi  ./build/PubSub/EventManager.abi
-        cp ./build/PubSubService.bin ./build/PubSub/PubSubService.bin
-        cp ./build/PubSubService.abi ./build/PubSub/PubSubService.abi
-        mkdir -p ./build/tests
-        cp ./build/HelloWorldPublisher.bin  ./build/tests/HelloWorldPublisher.bin
-        cp ./build/HelloWorldPublisher.abi  ./build/tests/HelloWorldPublisher.abi
-        cp ./build/HelloWorldSubscriber.bin ./build/tests/HelloWorldSubscriber.bin
-        cp ./build/HelloWorldSubscriber.abi ./build/tests/HelloWorldSubscriber.abi
+        mkdir -p PubSub
+        cp EventManager.bin  PubSub/EventManager.bin
+        cp EventManager.abi  PubSub/EventManager.abi
+        cp PubSubService.bin PubSub/PubSubService.bin
+        cp PubSubService.abi PubSub/PubSubService.abi
+        mkdir -p tests
+        cp HelloWorldPublisher.bin  tests/HelloWorldPublisher.bin
+        cp HelloWorldPublisher.abi  tests/HelloWorldPublisher.abi
+        cp HelloWorldSubscriber.bin tests/HelloWorldSubscriber.bin
+        cp HelloWorldSubscriber.abi tests/HelloWorldSubscriber.abi
 
     - name: Run publish gas cost evaluation
       run: |
@@ -119,6 +121,10 @@ jobs:
     - name: Run subscribe gas cost evaluation
       run: |
         python3 ${{ github.workspace }}/tests/GasCostEvalMultiPubs.py
+
+    - name: Run subscribe gas cost evaluation
+      run: |
+        python3 ${{ github.workspace }}/tests/GasCostEvalDeploy.py
 
     - name: Plot gas cost evaluation result figures
       run: |
@@ -142,7 +148,7 @@ jobs:
         echo "" >> ${RELE_NOTE}
         echo "## Checksums"       >> ${RELE_NOTE}
         echo "\`\`\`"             >> ${RELE_NOTE}
-        cat ./build/checksums.txt >> ${RELE_NOTE}
+        cat checksums.txt         >> ${RELE_NOTE}
         echo "\`\`\`"             >> ${RELE_NOTE}
         echo "" >> ${RELE_NOTE}
         echo "## Gas Cost Evaluations" >> ${RELE_NOTE}
@@ -150,11 +156,21 @@ jobs:
         echo ""                                          >> ${RELE_NOTE}
         echo '!'"[publish_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-publish_gas_cost.svg)"     >> ${RELE_NOTE}
         echo ""                                          >> ${RELE_NOTE}
+        echo "### Gas Cost of Publisher Registeration"   >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo '!'"[register_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-register_gas_cost.svg)" >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
         echo "### Gas Cost of Subscribing to Publishers" >> ${RELE_NOTE}
         echo ""                                          >> ${RELE_NOTE}
         echo '!'"[subscribe_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-subscribe_gas_cost.svg)" >> ${RELE_NOTE}
         echo ""                                          >> ${RELE_NOTE}
-        echo "### Gas Cost Summary" >> ${RELE_NOTE}
+        echo "### Gas Cost of Contract Deployment"       >> ${RELE_NOTE}
+        echo "\`\`\`json"                                >> ${RELE_NOTE}
+        cat deploy_gas_cost.json                         >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "\`\`\`"                                    >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "### Gas Cost Summary"                      >> ${RELE_NOTE}
         echo ""                                          >> ${RELE_NOTE}
         echo '!'"[gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-gas_cost.svg)" >> ${RELE_NOTE}
         echo ""                                          >> ${RELE_NOTE}
@@ -183,6 +199,9 @@ jobs:
           ${{ github.workspace }}/build/publish_gas_cost.json
           ${{ github.workspace }}/build/subscribe_gas_cost.svg
           ${{ github.workspace }}/build/subscribe_gas_cost.json
+          ${{ github.workspace }}/build/register_gas_cost.svg
+          ${{ github.workspace }}/build/register_gas_cost.json
+          ${{ github.workspace }}/build/deploy_gas_cost.json
           ${{ github.workspace }}/build/gas_cost.svg
 
     - name: Store evaluation figures to assets branch
@@ -200,6 +219,11 @@ jobs:
             --path "assets/${{ github.ref_name }}-subscribe_gas_cost.svg" \
             --commit-msg "Uploaded file assets/${{ github.ref_name }}-subscribe_gas_cost.svg" \
             --file "${{ github.workspace }}/build/subscribe_gas_cost.svg"
+        python3 ${{ github.workspace }}/utils/GitHubCreateFile.py \
+            --branch assets-gas-eval \
+            --path "assets/${{ github.ref_name }}-register_gas_cost.svg" \
+            --commit-msg "Uploaded file assets/${{ github.ref_name }}-register_gas_cost.svg" \
+            --file "${{ github.workspace }}/build/register_gas_cost.svg"
         python3 ${{ github.workspace }}/utils/GitHubCreateFile.py \
             --branch assets-gas-eval \
             --path "assets/${{ github.ref_name }}-gas_cost.svg" \
@@ -224,4 +248,7 @@ jobs:
           ${{ github.workspace }}/build/publish_gas_cost.json
           ${{ github.workspace }}/build/subscribe_gas_cost.svg
           ${{ github.workspace }}/build/subscribe_gas_cost.json
+          ${{ github.workspace }}/build/register_gas_cost.svg
+          ${{ github.workspace }}/build/register_gas_cost.json
+          ${{ github.workspace }}/build/deploy_gas_cost.json
           ${{ github.workspace }}/build/gas_cost.svg

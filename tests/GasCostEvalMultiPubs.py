@@ -65,7 +65,7 @@ def SelectRandomAccount(
 	)
 
 
-def RunTests() -> List[Tuple[int, int]]:
+def RunTests() -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
 	maxNumPublishers = 20
 
 	# connect to ganache
@@ -86,6 +86,7 @@ def RunTests() -> List[Tuple[int, int]]:
 	privKey = SelectRandomAccount(w3)
 
 
+	registerCost = []
 	subscribeCost = []
 
 
@@ -125,6 +126,7 @@ def RunTests() -> List[Tuple[int, int]]:
 		)
 
 		publishers = []
+		regCosts = []
 		print('Deploying {} publishers...'.format(numPublishers))
 		for pubIndex in range(0, numPublishers):
 			# choose a random account to deploy from
@@ -162,7 +164,7 @@ def RunTests() -> List[Tuple[int, int]]:
 
 			# register publisher
 			# print('Registering publisher...')
-			EthContractHelper.CallContractFunc(
+			regTxReceipt = EthContractHelper.CallContractFunc(
 				w3=w3,
 				contract=publisherContract,
 				funcName='register',
@@ -172,10 +174,18 @@ def RunTests() -> List[Tuple[int, int]]:
 				value=0,
 				confirmPrompt=False # don't prompt for confirmation
 			)
+			regCosts.append(regTxReceipt.gasUsed)
+			print('Register gas used: {}'.format(regTxReceipt.gasUsed))
 
 			publishers.append(publisherContract)
 
-		costs = []
+		# record register gas used
+		registerCost.append((
+			numPublishers,
+			sum(regCosts) / len(regCosts), # average gas cost
+		))
+
+		subsCosts = []
 		for publisherContract in publishers:
 			publisherAddr = publisherContract.address
 
@@ -253,16 +263,16 @@ def RunTests() -> List[Tuple[int, int]]:
 				publisherAddr
 			))
 
-			costs.append(subTxReceipt.gasUsed)
+			subsCosts.append(subTxReceipt.gasUsed)
 			print('Gas used: {}'.format(subTxReceipt.gasUsed))
 
-		# record gas used
+		# record subscribe gas used
 		subscribeCost.append((
 			numPublishers,
-			sum(costs) / len(costs), # average gas cost
+			sum(subsCosts) / len(subsCosts), # average gas cost
 		))
 
-	return subscribeCost
+	return registerCost, subscribeCost
 
 
 def StopGanache(ganacheProc: subprocess.Popen) -> None:
@@ -287,21 +297,26 @@ def main():
 	ganacheProc = StartGanache()
 
 	try:
-		gasResults = []
+		regGasResults = []
+		subsGasResults = []
 
 		for _ in range(3):
-			subscribeCost = RunTests()
+			registerCost, subscribeCost = RunTests()
 
-			print('Subscribe gas cost results:')
-			for cost in subscribeCost:
-				print('{:03} publishers: {:010.2f} gas'.format(cost[0], cost[1]))
+			# print('Subscribe gas cost results:')
+			# for cost in subscribeCost:
+			# 	print('{:03} publishers: {:010.2f} gas'.format(cost[0], cost[1]))
 
-			gasResults.append(subscribeCost)
+			regGasResults.append(registerCost)
+			subsGasResults.append(subscribeCost)
 
 		# save results
 		outputFile = os.path.join(BUILD_DIR_PATH, 'subscribe_gas_cost.json')
 		with open(outputFile, 'w') as f:
-			json.dump(gasResults, f, indent='\t')
+			json.dump(subsGasResults, f, indent='\t')
+		outputFile = os.path.join(BUILD_DIR_PATH, 'register_gas_cost.json')
+		with open(outputFile, 'w') as f:
+			json.dump(regGasResults, f, indent='\t')
 
 	finally:
 		# finish and exit
