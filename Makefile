@@ -1,16 +1,24 @@
-NODEENV_CONFIG := ./utils/nodeenv.ini
-NODEENV_REQ    := ./utils/nodeenv-requirements.txt
 MODULES        := \
 	PubSub \
 	tests
+SOLC_VERSION   := v0.8.20
+MKFILE_PATH    := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR    := $(dir $(MKFILE_PATH))
+SOLC_BIN       := $(CURRENT_DIR)/build/solc-static-linux
 
 
-all: build/nodeenv.state $(MODULES)
+all: $(SOLC_BIN) $(MODULES)
 
 
-build/nodeenv.state: $(NODEENV_CONFIG) $(NODEENV_REQ)
-	nodeenv --config=$(NODEENV_CONFIG) --requirements=$(NODEENV_REQ) build/nodeenv
-	touch $@
+$(SOLC_BIN):
+	mkdir -p $(dir $(SOLC_BIN)) && \
+	curl -fsSL -o $(SOLC_BIN) \
+		https://github.com/ethereum/solidity/releases/download/$(SOLC_VERSION)/solc-static-linux \
+		&& \
+	chmod +x $(SOLC_BIN)
+
+
+solc_bin: $(SOLC_BIN)
 
 
 $(MODULES):
@@ -22,7 +30,7 @@ $(addprefix clean_,$(MODULES)):
 
 
 clean: $(addprefix clean_,$(MODULES))
-	rm -rf build/nodeenv build/nodeenv.state
+	rm -rf $(SOLC_BIN)
 
 
-.PHONY: all clean $(MODULES) $(addprefix clean_,$(MODULES))
+.PHONY: all clean solc_bin $(MODULES) $(addprefix clean_,$(MODULES))

@@ -16,15 +16,24 @@ on:
 
 jobs:
   run_sol_contracts_job:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04 ]
+        solc-version: [ 0.8.20 ]
+        chain-fork: [ shanghai ]
+        opt-runs: [ 200 ]
+
     name: A job to run solidity unit tests on github actions CI
     steps:
     - name: Checkout
       uses: actions/checkout@v3
+
     - name: Run Solidity Unit Testing Action
       uses: EthereumRemix/sol-test@v1.1
       with:
         test-path: 'tests/PubSub'
-        compiler-version: '0.8.19'
+        compiler-version: ${{ matrix.solc-version }}
         optimize: true
-        optimizer-runs: 200
+        optimizer-runs: ${{ matrix.opt-runs }}
+        hard-fork: ${{ matrix.chain-fork }}

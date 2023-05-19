@@ -2,7 +2,6 @@ name: Create release
 
 on:
   push:
-    branches: [ main ]
     tags:
       - "v*.*.*"
   pull_request:
@@ -18,86 +17,102 @@ jobs:
         python-version: [ 3.11 ]
         node-version: [ 18.16.0 ]
 
-        solc-version: [ 0.8.19 ]
         ganache-version: [ 7.8.0 ]
 
-        opt-flags: [ "--optimize --optimize-runs 200" ]
+        solc-version: [ v0.8.20 ]
+
+    env:
+      SOLC_BIN: ${{ github.workspace }}/build/solc-static-linux
+      SOLC_FLAGS: >-
+        --optimize --optimize-runs 200
+        --revert-strings strip
+        --via-ir
+        --overwrite
+        --base-path ${{ github.workspace }}
+        --output-dir ${{ github.workspace }}/build/
+      SOLC_VER_CMD: >-
+        ${{ github.workspace }}/build/solc-static-linux
+        --version | tail -n 1 | sed -e "s/^Version: //g"
+      RELE_NOTE: ${{ github.workspace }}/build/release_note.md
 
     name: A job to create a release
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-
-    - name: Installing Node ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
       with:
-        node-version: ${{ matrix.node-version }}
+        submodules: recursive
 
     - name: Installing Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Installing NPM packages
-      run: |
-        npm install -g solc@${{ matrix.solc-version }}
-        npm install -g ganache@${{ matrix.ganache-version }}
-
     - name: Installing Python packages
       run: |
         python3 -m pip install --requirement ${{ github.workspace }}/utils/gas_cost_eval_requirements.txt
 
+    - name: Installing Node ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Installing NPM packages
+      run: |
+        npm install -g ganache@${{ matrix.ganache-version }}
+
+    - name: Installing Solc compiler
+      run: |
+        mkdir -p ${{ github.workspace }}/build/
+        curl -fsSL -o ${SOLC_BIN} \
+          https://github.com/ethereum/solidity/releases/download/${{ matrix.solc-version }}/solc-static-linux
+        chmod +x ${SOLC_BIN}
+
     - name: Compiling contracts for PubSub/EventManager.sol
       run: |
-        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/EventManager.sol
-        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/EventManager.sol
-        mv ./build/PubSub_EventManager_sol_EventManager.bin   ./build/EventManager.bin
-        mv ./build/PubSub_EventManager_sol_EventManager.abi   ./build/EventManager.abi
+        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/PubSub/EventManager.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/PubSub/EventManager.sol
 
     - name: Compiling contracts for PubSub/PubSubService.sol
       run: |
-        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/PubSubService.sol
-        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./PubSub/PubSubService.sol
-        mv ./build/PubSub_PubSubService_sol_PubSubService.bin ./build/PubSubService.bin
-        mv ./build/PubSub_PubSubService_sol_PubSubService.abi ./build/PubSubService.abi
+        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/PubSub/PubSubService.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/PubSub/PubSubService.sol
 
     - name: Compiling contracts for tests/HelloWorldSubscriber.sol
       run: |
-        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldSubscriber.sol
-        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldSubscriber.sol
-        mv ./build/tests_HelloWorldSubscriber_sol_HelloWorldSubscriber.bin ./build/HelloWorldSubscriber.bin
-        mv ./build/tests_HelloWorldSubscriber_sol_HelloWorldSubscriber.abi ./build/HelloWorldSubscriber.abi
+        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/tests/HelloWorldSubscriber.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/tests/HelloWorldSubscriber.sol
 
     - name: Compiling contracts for tests/HelloWorldPublisher.sol
       run: |
-        solcjs  ${{ matrix.opt-flags }} --bin --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldPublisher.sol
-        solcjs  ${{ matrix.opt-flags }} --abi --include-path node_modules/ --base-path . --output-dir ./build/ ./tests/HelloWorldPublisher.sol
-        mv ./build/tests_HelloWorldPublisher_sol_HelloWorldPublisher.bin   ./build/HelloWorldPublisher.bin
-        mv ./build/tests_HelloWorldPublisher_sol_HelloWorldPublisher.abi   ./build/HelloWorldPublisher.abi
+        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/tests/HelloWorldPublisher.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/tests/HelloWorldPublisher.sol
 
     - name: Calculating checksums of the binary
+      working-directory: ${{ github.workspace }}/build
       run: |
-        sha256sum ./build/EventManager.bin  >> ./build/checksums.txt
-        sha256sum ./build/EventManager.abi  >> ./build/checksums.txt
-        sha256sum ./build/PubSubService.bin >> ./build/checksums.txt
-        sha256sum ./build/PubSubService.abi >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldPublisher.bin  >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldPublisher.abi  >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldSubscriber.bin >> ./build/checksums.txt
-        sha256sum ./build/HelloWorldSubscriber.abi >> ./build/checksums.txt
+        sha256sum solc-static-linux        >> checksums.txt
+        sha256sum EventManager.bin         >> checksums.txt
+        sha256sum EventManager.abi         >> checksums.txt
+        sha256sum PubSubService.bin        >> checksums.txt
+        sha256sum PubSubService.abi        >> checksums.txt
+        sha256sum HelloWorldPublisher.bin  >> checksums.txt
+        sha256sum HelloWorldPublisher.abi  >> checksums.txt
+        sha256sum HelloWorldSubscriber.bin >> checksums.txt
+        sha256sum HelloWorldSubscriber.abi >> checksums.txt
 
     - name: Prepare binaries for gas cost evaluation
+      working-directory: ${{ github.workspace }}/build
       run: |
-        mkdir -p ./build/PubSub
-        cp ./build/EventManager.bin  ./build/PubSub/EventManager.bin
-        cp ./build/EventManager.abi  ./build/PubSub/EventManager.abi
-        cp ./build/PubSubService.bin ./build/PubSub/PubSubService.bin
-        cp ./build/PubSubService.abi ./build/PubSub/PubSubService.abi
-        mkdir -p ./build/tests
-        cp ./build/HelloWorldPublisher.bin  ./build/tests/HelloWorldPublisher.bin
-        cp ./build/HelloWorldPublisher.abi  ./build/tests/HelloWorldPublisher.abi
-        cp ./build/HelloWorldSubscriber.bin ./build/tests/HelloWorldSubscriber.bin
-        cp ./build/HelloWorldSubscriber.abi ./build/tests/HelloWorldSubscriber.abi
+        mkdir -p PubSub
+        cp EventManager.bin  PubSub/EventManager.bin
+        cp EventManager.abi  PubSub/EventManager.abi
+        cp PubSubService.bin PubSub/PubSubService.bin
+        cp PubSubService.abi PubSub/PubSubService.abi
+        mkdir -p tests
+        cp HelloWorldPublisher.bin  tests/HelloWorldPublisher.bin
+        cp HelloWorldPublisher.abi  tests/HelloWorldPublisher.abi
+        cp HelloWorldSubscriber.bin tests/HelloWorldSubscriber.bin
+        cp HelloWorldSubscriber.abi tests/HelloWorldSubscriber.abi
 
     - name: Run publish gas cost evaluation
       run: |
@@ -107,40 +122,59 @@ jobs:
       run: |
         python3 ${{ github.workspace }}/tests/GasCostEvalMultiPubs.py
 
+    - name: Run deployment gas cost evaluation
+      run: |
+        python3 ${{ github.workspace }}/tests/GasCostEvalDeploy.py
+
     - name: Plot gas cost evaluation result figures
       run: |
         python3 ${{ github.workspace }}/tests/GasCostEvalPlot.py
 
     - name: Generate release note
+      working-directory: ${{ github.workspace }}/build
       run: |
-        echo "# Release note"                   >> ./build/release_note.md
-        echo "## Contracts"                     >> ./build/release_note.md
-        echo "- PubSub/EventManager.sol"        >> ./build/release_note.md
-        echo "- PubSub/PubSubService.sol"       >> ./build/release_note.md
-        echo "- tests/HelloWorldPublisher.sol"  >> ./build/release_note.md
-        echo "- tests/HelloWorldSubscriber.sol" >> ./build/release_note.md
-        echo "" >> ./build/release_note.md
-        echo "## Build configurations"                      >> ./build/release_note.md
-        echo "- OS: \`${{ matrix.os }}\`"                   >> ./build/release_note.md
-        echo "- Node version: \`$(node --version)\`"        >> ./build/release_note.md
-        echo "- Solc version: \`$(solcjs --version)\`"      >> ./build/release_note.md
-        echo "- Optimizations: \`${{ matrix.opt-flags }}\`" >> ./build/release_note.md
-        echo "" >> ./build/release_note.md
-        echo "## Checksums"       >> ./build/release_note.md
-        echo "\`\`\`"             >> ./build/release_note.md
-        cat ./build/checksums.txt >> ./build/release_note.md
-        echo "\`\`\`"             >> ./build/release_note.md
-        echo "" >> ./build/release_note.md
-        echo "## Gas Cost Evaluations" >> ./build/release_note.md
-        echo "### Gas Cost of Publishing Events"         >> ./build/release_note.md
-        echo ""                                          >> ./build/release_note.md
-        echo '!'"[publish_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-publish_gas_cost.svg)"     >> ./build/release_note.md
-        echo ""                                          >> ./build/release_note.md
-        echo "### Gas cost of Subscribing to Publishers" >> ./build/release_note.md
-        echo ""                                          >> ./build/release_note.md
-        echo '!'"[subscribe_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-subscribe_gas_cost.svg)" >> ./build/release_note.md
-        echo ""                                          >> ./build/release_note.md
-        echo "" >> ./build/release_note.md
+        echo "# Release note"                   >> ${RELE_NOTE}
+        echo "" >> ${RELE_NOTE}
+        echo "## Contracts"                     >> ${RELE_NOTE}
+        echo "- PubSub/EventManager.sol"        >> ${RELE_NOTE}
+        echo "- PubSub/PubSubService.sol"       >> ${RELE_NOTE}
+        echo "- tests/HelloWorldPublisher.sol"  >> ${RELE_NOTE}
+        echo "- tests/HelloWorldSubscriber.sol" >> ${RELE_NOTE}
+        echo "" >> ${RELE_NOTE}
+        echo "## Build configurations"                          >> ${RELE_NOTE}
+        echo "- OS: \`${{ matrix.os }}\`"                       >> ${RELE_NOTE}
+        echo "- Solc version: \`$(bash -c "${SOLC_VER_CMD}")\`" >> ${RELE_NOTE}
+        echo "- Compiler Flags: \`${SOLC_FLAGS}\`"              >> ${RELE_NOTE}
+        echo "" >> ${RELE_NOTE}
+        echo "## Checksums"       >> ${RELE_NOTE}
+        echo "\`\`\`"             >> ${RELE_NOTE}
+        cat checksums.txt         >> ${RELE_NOTE}
+        echo "\`\`\`"             >> ${RELE_NOTE}
+        echo "" >> ${RELE_NOTE}
+        echo "## Gas Cost Evaluations" >> ${RELE_NOTE}
+        echo "### Gas Cost of Publishing Events"         >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo '!'"[publish_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-publish_gas_cost.svg)"     >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "### Gas Cost of Publisher Registeration"   >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo '!'"[register_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-register_gas_cost.svg)" >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "### Gas Cost of Subscribing to Publishers" >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo '!'"[subscribe_gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-subscribe_gas_cost.svg)" >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "### Gas Cost of Contract Deployment"       >> ${RELE_NOTE}
+        echo "\`\`\`json"                                >> ${RELE_NOTE}
+        cat deploy_gas_cost.json                         >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "\`\`\`"                                    >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "### Gas Cost Summary"                      >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo '!'"[gas_cost](/../../blob/assets-gas-eval/assets/${{ github.ref_name }}-gas_cost.svg)" >> ${RELE_NOTE}
+        echo ""                                          >> ${RELE_NOTE}
+        echo "" >> ${RELE_NOTE}
 
     - name: Echo release note
       run: |
@@ -165,6 +199,9 @@ jobs:
           ${{ github.workspace }}/build/publish_gas_cost.json
           ${{ github.workspace }}/build/subscribe_gas_cost.svg
           ${{ github.workspace }}/build/subscribe_gas_cost.json
+          ${{ github.workspace }}/build/register_gas_cost.svg
+          ${{ github.workspace }}/build/register_gas_cost.json
+          ${{ github.workspace }}/build/deploy_gas_cost.json
           ${{ github.workspace }}/build/gas_cost.svg
 
     - name: Store evaluation figures to assets branch
@@ -182,6 +219,11 @@ jobs:
             --path "assets/${{ github.ref_name }}-subscribe_gas_cost.svg" \
             --commit-msg "Uploaded file assets/${{ github.ref_name }}-subscribe_gas_cost.svg" \
             --file "${{ github.workspace }}/build/subscribe_gas_cost.svg"
+        python3 ${{ github.workspace }}/utils/GitHubCreateFile.py \
+            --branch assets-gas-eval \
+            --path "assets/${{ github.ref_name }}-register_gas_cost.svg" \
+            --commit-msg "Uploaded file assets/${{ github.ref_name }}-register_gas_cost.svg" \
+            --file "${{ github.workspace }}/build/register_gas_cost.svg"
         python3 ${{ github.workspace }}/utils/GitHubCreateFile.py \
             --branch assets-gas-eval \
             --path "assets/${{ github.ref_name }}-gas_cost.svg" \
@@ -206,3 +248,7 @@ jobs:
           ${{ github.workspace }}/build/publish_gas_cost.json
           ${{ github.workspace }}/build/subscribe_gas_cost.svg
           ${{ github.workspace }}/build/subscribe_gas_cost.json
+          ${{ github.workspace }}/build/register_gas_cost.svg
+          ${{ github.workspace }}/build/register_gas_cost.json
+          ${{ github.workspace }}/build/deploy_gas_cost.json
+          ${{ github.workspace }}/build/gas_cost.svg
