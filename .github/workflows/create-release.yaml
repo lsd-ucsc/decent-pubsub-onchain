@@ -2,7 +2,6 @@ name: Create release
 
 on:
   push:
-    branches: [ main ]
     tags:
       - "v*.*.*"
   pull_request:
@@ -91,6 +90,7 @@ jobs:
     - name: Calculating checksums of the binary
       working-directory: ${{ github.workspace }}/build
       run: |
+        sha256sum solc-static-linux        >> checksums.txt
         sha256sum EventManager.bin         >> checksums.txt
         sha256sum EventManager.abi         >> checksums.txt
         sha256sum PubSubService.bin        >> checksums.txt
@@ -122,7 +122,7 @@ jobs:
       run: |
         python3 ${{ github.workspace }}/tests/GasCostEvalMultiPubs.py
 
-    - name: Run subscribe gas cost evaluation
+    - name: Run deployment gas cost evaluation
       run: |
         python3 ${{ github.workspace }}/tests/GasCostEvalDeploy.py
 
