@@ -70,13 +70,13 @@ jobs:
 
     - name: Compiling contracts for PubSub/EventManager.sol
       run: |
-        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/contracts/EventManager.sol
-        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/contracts/EventManager.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/PubSub/EventManager.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/PubSub/EventManager.sol
 
     - name: Compiling contracts for PubSub/PubSubService.sol
       run: |
-        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/contracts/PubSubService.sol
-        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/contracts/PubSubService.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --bin ${{ github.workspace }}/PubSub/PubSubService.sol
+        ${SOLC_BIN} ${SOLC_FLAGS} --abi ${{ github.workspace }}/PubSub/PubSubService.sol
 
     - name: Compiling contracts for tests/HelloWorldSubscriber.sol
       run: |
