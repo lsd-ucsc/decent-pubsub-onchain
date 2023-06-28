@@ -3,7 +3,8 @@
 		"PubSubService"       : "PubSub",
 		"EventManager"        : "PubSub",
 		"HelloWorldPublisher" : "tests",
-		"HelloWorldSubscriber": "tests"
+		"HelloWorldSubscriber": "tests",
+		"BasicActionGasCost"  : "tests"
 	},
 	"releaseUrl": "https://github.com/lsd-ucsc/decent-pubsub-onchain/releases/download/{version}/{contract}",
 	"buildDir"  : "build"
