@@ -1,7 +1,7 @@
 MODULES        := \
 	PubSub \
 	tests
-SOLC_VERSION   := v0.8.20
+SOLC_VERSION   := v0.8.21
 MKFILE_PATH    := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR    := $(dir $(MKFILE_PATH))
 SOLC_BIN       := $(CURRENT_DIR)/build/solc-static-linux

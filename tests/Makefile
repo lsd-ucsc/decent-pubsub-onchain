@@ -1,7 +1,8 @@
 MODULE_NAME := tests
 CONTRACTS   := \
 	HelloWorldPublisher \
-	HelloWorldSubscriber
+	HelloWorldSubscriber \
+	BasicActionGasCost
 
 MKFILE_PATH  := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR  := $(dir $(MKFILE_PATH))
