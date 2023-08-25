@@ -19,10 +19,13 @@ contract BasicActionGasCost {
 	address m_subAddr = address(0);
 	bool m_someBool = false;
 	mapping(address => bool) m_someMap;
+	address m_someAddr = 0x0000000000000000000000000000000000000000;
 
 	constructor() {
 		GasEvalSubscriber sub = new GasEvalSubscriber();
 		m_subAddr = address(sub);
+
+		m_someMap[m_someAddr] = true;
 	}
 
 	function eval() external {
@@ -32,6 +35,7 @@ contract BasicActionGasCost {
 		uint256 gasUsed = 0;
 		bool someBool = !m_someBool;
 		address someAddr = msg.sender;
+		address someAddr2 = m_someAddr;
 
 		gasStart = gasleft();
 		GasEvalSubscriber(m_subAddr).onNotify(data);
@@ -47,5 +51,13 @@ contract BasicActionGasCost {
 		m_someMap[someAddr] = someBool;
 		gasUsed = gasStart - gasleft();
 		emit LogGasCost(3, gasUsed);
+
+		gasStart = gasleft();
+		delete m_someMap[someAddr2];
+		gasUsed = gasStart - gasleft();
+		emit LogGasCost(4, gasUsed);
+
+		m_someBool = false;
+		m_someMap[someAddr2] = true;
 	}
 }
